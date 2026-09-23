@@ -4,13 +4,68 @@ from django.db.models.functions import TruncDate
 from django.template.response import TemplateResponse
 from django.urls import path
 from .forms import PostAdminForm
-from .models import Announcement, Comment, Like, LoginAttempt, Notification, Post, PostImage, Report, Resource, VisitLog
+from .models import Announcement, Comment, Lecture, Like, LoginAttempt, Notification, Post, PostImage, Report, Resource, TeacherDigest, Ticket, VisitLog
+from .tickets import tickets_csv
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
     form = PostAdminForm
-    list_display = ("title", "kind", "author", "anonymous", "status", "pinned", "created_at")
-    list_filter = ("kind", "anonymous", "status", "pinned")
+    list_display = ("title", "kind", "author", "anonymous", "status", "planned_lecture", "pinned", "created_at")
+    list_filter = ("kind", "anonymous", "status", "planned_lecture", "pinned", "teacher_dismissed")
+
+
+@admin.register(Lecture)
+class LectureAdmin(admin.ModelAdmin):
+    list_display = ("number", "title", "date", "planned_count", "ticket_count")
+    ordering = ("number",)
+    actions = ["export_tickets"]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_planned=Count("planned_posts", distinct=True), _tickets=Count("tickets", distinct=True))
+
+    @admin.display(description="排进的提问", ordering="_planned")
+    def planned_count(self, obj):
+        return obj._planned
+
+    @admin.display(description="课后小票", ordering="_tickets")
+    def ticket_count(self, obj):
+        return obj._tickets
+
+    @admin.action(description="导出所选讲次的课后小票（姓名换代号，CSV）")
+    def export_tickets(self, request, queryset):
+        numbers = "-".join(str(n) for n in queryset.order_by("number").values_list("number", flat=True))
+        return tickets_csv(Ticket.objects.filter(lecture__in=queryset), f"tickets-lecture-{numbers}.csv")
+
+
+@admin.register(Ticket)
+class TicketAdmin(admin.ModelAdmin):
+    list_display = ("lecture", "student", "body", "created_at")
+    list_filter = ("lecture",)
+    search_fields = ("body", "author__username", "author__first_name")
+    date_hierarchy = "created_at"
+    actions = ["export_selected"]
+
+    @admin.display(description="学生", ordering="author__first_name")
+    def student(self, obj):
+        return obj.author.first_name or obj.author.username
+
+    @admin.action(description="导出所选小票（姓名换代号，CSV）")
+    def export_selected(self, request, queryset):
+        return tickets_csv(queryset, "tickets.csv")
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(TeacherDigest)
+class TeacherDigestAdmin(admin.ModelAdmin):
+    list_display = ("sent_at", "new_count", "total_count")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(PostImage)
@@ -22,11 +77,13 @@ class PostImageAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ("post", "author", "anonymous", "created_at")
+    list_display = ("post", "author", "anonymous", "teacher_dismissed", "created_at")
+    list_filter = ("teacher_dismissed",)
 
 @admin.register(Resource)
 class ResourceAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "created_at")
+    list_display = ("title", "lecture", "category", "created_at")
+    list_filter = ("lecture",)
 
 @admin.register(VisitLog)
 class VisitLogAdmin(admin.ModelAdmin):

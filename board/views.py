@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from pathlib import Path
 from django.contrib import messages
@@ -13,10 +14,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.utils.http import url_has_allowed_host_and_scheme
-from .forms import CommentForm, PostForm, ReportForm
+from .forms import CommentForm, PlanForm, PostForm, QuickPostForm, ReportForm
 from .feed import course_feed_page
 from .media import video_embed_url
-from .models import Announcement, Comment, Like, Notification, Post, PostImage, Resource
+from .models import Announcement, Comment, Lecture, Like, Notification, Post, PostImage, Resource, Ticket
+from .pending import derive_title, pending_comments, pending_posts
 
 IMAGE_CONTENT_TYPES = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
@@ -42,7 +44,109 @@ def home(request):
     context = common_context()
     page = course_feed_page(kind, sort, context["current_week_start"] if week == "current" else None, request.GET.get("page"))
     context.update({"page_obj": page, "kind": kind, "sort": sort, "week": week, "topic_count": Post.objects.filter(kind="topic").count(), "showcase_count": Post.objects.filter(kind="showcase").count(), "resource_count": Resource.objects.count()})
+    if kind != "resource":
+        context["quick_draft"] = request.session.pop("quick_draft", None)
+        context["quick_kind"] = kind or Post.Kind.TOPIC
+        context["ticket_lecture"] = Lecture.latest_held()
+    # 排行只放在第一页、不筛本周的视图里，免得和筛选结果混在一起。
+    if kind in {"", Post.Kind.TOPIC} and week == "all" and page.number == 1:
+        context.update(topic_ranking(request.user))
     return render(request, "board/home.html", context)
+
+RANKING_SIZE = 5
+
+def topic_ranking(user):
+    """「下节课想听什么」排行：还开放、没排进讲次的提问，按赞同数排序。赞同 = 投票。"""
+    upcoming = Lecture.upcoming()
+    candidates = list(Post.objects.filter(kind=Post.Kind.TOPIC, status=Post.Status.OPEN, planned_lecture__isnull=True)
+                      .annotate(like_count=Count("likes", distinct=True))
+                      .order_by("-like_count", "created_at")[:RANKING_SIZE])
+    liked = set(Like.objects.filter(user=user, post__in=candidates).values_list("post_id", flat=True))
+    top = candidates[0].like_count if candidates else 0
+    for post in candidates:
+        post.voted = post.pk in liked
+        post.percent = round(post.like_count * 100 / top) if top else 0
+    leaders = [post for post in candidates if top and post.like_count == top]
+    return {"show_ranking": True, "ranking": candidates, "ranking_upcoming": upcoming, "ranking_tie": len(leaders) > 1,
+            "ranking_voters": Like.objects.filter(post__kind=Post.Kind.TOPIC, post__status=Post.Status.OPEN, post__planned_lecture__isnull=True).values("user").distinct().count()}
+
+QUICK_DUPLICATE_WINDOW = timedelta(seconds=30)
+
+@login_required
+@require_POST
+def quick_post(request):
+    form = QuickPostForm(request.POST)
+    kind = request.POST.get("kind") if request.POST.get("kind") in Post.Kind.values else ""
+    back = reverse("board:home") + (f"?kind={kind}" if kind else "")
+    if not form.is_valid():
+        request.session["quick_draft"] = {"body": request.POST.get("body", "")[:1000], "anonymous": bool(request.POST.get("anonymous")), "to_teacher": bool(request.POST.get("to_teacher"))}
+        messages.error(request, " ".join(error for errors in form.errors.values() for error in errors))
+        return redirect(back)
+    data = form.cleaned_data
+    recent = timezone.now() - QUICK_DUPLICATE_WINDOW
+    if data["to_teacher"] and not request.user.is_staff:
+        lecture = Lecture.latest_held()
+        # 双击或刷新重复提交：同一内容 30 秒内只记一次。
+        if not Ticket.objects.filter(author=request.user, body=data["body"], created_at__gte=recent).exists():
+            Ticket.objects.create(author=request.user, lecture=lecture, body=data["body"])
+        messages.success(request, f"已交给老师{('（' + lecture.label + '的课后小票）') if lecture else ''}。只有老师能看到，老师会在课上统一回应。")
+        return redirect(back)
+    post = Post.objects.filter(author=request.user, body=data["body"], created_at__gte=recent).first()
+    if post is None:
+        post = Post.objects.create(author=request.user, kind=data["kind"], title=derive_title(data["body"]), body=data["body"], anonymous=data["anonymous"])
+    messages.success(request, "已发布。")
+    return redirect(back + f"#post-{post.pk}")
+
+@login_required
+@require_POST
+def post_plan(request, pk):
+    if not request.user.is_staff:
+        raise PermissionDenied
+    post = get_object_or_404(Post, pk=pk)
+    form = PlanForm(request.POST)
+    lecture_id = form.cleaned_data["lecture"] if form.is_valid() else None
+    lecture = get_object_or_404(Lecture, pk=lecture_id) if lecture_id else None
+    previous = post.planned_lecture_id
+    post.planned_lecture = lecture
+    if lecture:
+        post.status = Post.Status.PLANNED
+    elif post.status == Post.Status.PLANNED:
+        post.status = Post.Status.OPEN
+    post.save(update_fields=["planned_lecture", "status"])
+    if lecture and lecture.pk != previous and post.author_id != request.user.id:
+        Notification.objects.create(recipient=post.author, actor=request.user, kind=Notification.Kind.POST_PLANNED, post=post)
+    messages.success(request, f"已排进{lecture.label}，作者会收到通知。" if lecture else "已取消排课。")
+    target = request.POST.get("next", "")
+    if target and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return redirect(target)
+    return redirect("board:post_detail", pk=pk)
+
+def _staff_only(user):
+    if not user.is_staff:
+        raise PermissionDenied
+
+@login_required
+def pending(request):
+    _staff_only(request.user)
+    ticket_lecture = Lecture.latest_held()
+    tickets = Ticket.objects.filter(lecture=ticket_lecture) if ticket_lecture else Ticket.objects.none()
+    return render(request, "board/pending.html", common_context() | {
+        "pending_post_list": pending_posts(), "pending_comment_list": pending_comments(),
+        "ticket_lecture": ticket_lecture, "ticket_count": tickets.count(),
+        "upcoming_lecture": Lecture.upcoming(), "now": timezone.now(),
+    })
+
+@login_required
+@require_POST
+def pending_dismiss(request):
+    _staff_only(request.user)
+    model = {"post": Post, "comment": Comment}.get(request.POST.get("type"))
+    object_id = request.POST.get("id", "")
+    if model is None or not object_id.isdigit():
+        raise Http404
+    model.objects.filter(pk=int(object_id)).update(teacher_dismissed=True)
+    anchor = request.POST.get("anchor", "")
+    return redirect(reverse("board:pending") + (f"#{anchor}" if re.fullmatch(r"[a-z]+-\d+", anchor) else ""))
 
 @login_required
 def post_create(request):
@@ -72,10 +176,11 @@ def post_edit(request, pk):
 
 @login_required
 def post_detail(request, pk):
-    post = get_object_or_404(Post.objects.select_related("author").prefetch_related("gallery_images").annotate(like_count=Count("likes", distinct=True), comment_count=Count("comments", distinct=True)), pk=pk)
+    post = get_object_or_404(Post.objects.select_related("author", "planned_lecture").prefetch_related("gallery_images").annotate(like_count=Count("likes", distinct=True), comment_count=Count("comments", distinct=True)), pk=pk)
     reply_to = request.GET.get("reply_to")
     initial = {"parent_id": reply_to} if reply_to and reply_to.isdigit() and post.comments.filter(pk=reply_to).exists() else {}
-    return render(request, "board/post_detail.html", common_context() | {"post": post, "comments": post.comments.select_related("author", "parent"), "liked": post.likes.filter(user=request.user).exists(), "comment_form": CommentForm(initial=initial), "report_form": ReportForm(), "video_embed_url": video_embed_url(post.video_link)})
+    staff_extra = {"lectures": Lecture.objects.all(), "upcoming_lecture": Lecture.upcoming()} if request.user.is_staff else {}
+    return render(request, "board/post_detail.html", common_context() | staff_extra | {"post": post, "comments": post.comments.select_related("author", "parent"), "liked": post.likes.filter(user=request.user).exists(), "comment_form": CommentForm(initial=initial), "report_form": ReportForm(), "video_embed_url": video_embed_url(post.video_link)})
 
 def _can_delete(user, obj): return user.is_staff or obj.author_id == user.id
 
@@ -128,7 +233,7 @@ def comment_delete(request, pk):
     return render(request, "board/confirm_delete.html", common_context() | {"object": comment, "cancel_url": reverse("board:post_detail", args=[comment.post_id])})
 
 @login_required
-def resources(request): return render(request, "board/resources.html", common_context() | {"resources": Resource.objects.all()})
+def resources(request): return render(request, "board/resources.html", common_context() | {"resources": Resource.objects.select_related("lecture")})
 
 @login_required
 def resource_download(request, pk):

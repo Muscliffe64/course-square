@@ -73,4 +73,11 @@ systemctl daemon-reload
 systemctl enable course-square.service
 systemctl restart course-square.service
 systemctl is-active course-square.service
+install -m 0644 "$RELEASE_DIR/deploy/course-square-notify.service" /etc/systemd/system/course-square-notify.service
+install -m 0644 "$RELEASE_DIR/deploy/course-square-notify.timer" /etc/systemd/system/course-square-notify.timer
+systemctl daemon-reload
+systemctl enable --now course-square-notify.timer
+if ! grep -q '^TEACHER_NOTIFY_WEBHOOK=.' /etc/course-square.env; then
+  echo 'Teacher push is off: add TEACHER_NOTIFY_WEBHOOK (and COURSE_SITE_URL) to /etc/course-square.env to enable it.'
+fi
 echo 'Loopback service installed. Configure HTTPS routing and create the administrator before sharing the site.'

@@ -4,6 +4,7 @@ from pathlib import Path
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 from .thumbnails import ensure_thumbnail, thumbnail_upload
 
@@ -51,6 +52,41 @@ def validate_audio(upload):
     if Path(upload.name).suffix.lower() not in AUDIO_EXTENSIONS:
         raise ValidationError("仅支持 MP3、M4A、WAV 和 OGG 音频。")
 
+class Lecture(models.Model):
+    """第几讲：帖子、资料、小票都可以挂在某一讲上。"""
+    number = models.PositiveSmallIntegerField("第几讲", unique=True)
+    title = models.CharField("主题", max_length=120, blank=True)
+    date = models.DateField("上课日期")
+
+    @classmethod
+    def upcoming(cls, today=None):
+        """下一次要上的课（含今天）。"""
+        from django.utils import timezone
+        return cls.objects.filter(date__gte=today or timezone.localdate()).order_by("date", "number").first()
+
+    @classmethod
+    def latest_held(cls, today=None):
+        """最近一次已经上过的课（含今天），课后小票挂在这里。"""
+        from django.utils import timezone
+        return cls.objects.filter(date__lte=today or timezone.localdate()).order_by("-date", "-number").first()
+
+    @property
+    def is_past(self):
+        from django.utils import timezone
+        return self.date < timezone.localdate()
+
+    @property
+    def label(self):
+        return f"第 {self.number} 讲"
+
+    def __str__(self):
+        return f"{self.label} · {self.title}" if self.title else self.label
+
+    class Meta:
+        ordering = ["number"]
+        verbose_name = "讲次"
+        verbose_name_plural = "讲次"
+
 class Post(models.Model):
     class Kind(models.TextChoices):
         TOPIC = "topic", "下节课想听什么"
@@ -73,6 +109,8 @@ class Post(models.Model):
     video_link = models.URLField("视频链接", max_length=500, blank=True)
     status = models.CharField("状态", max_length=16, choices=Status.choices, default=Status.OPEN)
     pinned = models.BooleanField("置顶", default=False)
+    planned_lecture = models.ForeignKey(Lecture, verbose_name="排进讲次", on_delete=models.SET_NULL, null=True, blank=True, related_name="planned_posts")
+    teacher_dismissed = models.BooleanField("无需老师回复", default=False, help_text="勾选后不再出现在「待回应」里")
     created_at = models.DateTimeField("发布时间", auto_now_add=True)
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")
@@ -153,6 +191,7 @@ class Comment(models.Model):
     author = models.ForeignKey(User, verbose_name="作者", on_delete=models.CASCADE, related_name="comments")
     body = models.TextField("内容", max_length=1000)
     anonymous = models.BooleanField("匿名", default=False)
+    teacher_dismissed = models.BooleanField("无需老师回复", default=False)
     created_at = models.DateTimeField("发布时间", auto_now_add=True)
     def __str__(self): return f"{self.post}: {self.body[:30]}"
     class Meta:
@@ -165,6 +204,7 @@ class Notification(models.Model):
         NEW_COMMENT = "new_comment", "学生新留言"
         COMMENT_REPLY = "comment_reply", "评论被回复"
         POST_LIKE = "post_like", "帖子获赞"
+        POST_PLANNED = "post_planned", "帖子排进讲次"
     recipient = models.ForeignKey(User, verbose_name="接收人", on_delete=models.CASCADE, related_name="notifications")
     actor = models.ForeignKey(User, verbose_name="触发人", on_delete=models.SET_NULL, null=True, related_name="sent_notifications")
     kind = models.CharField("类型", max_length=24, choices=Kind.choices)
@@ -192,6 +232,7 @@ class Resource(models.Model):
     title = models.CharField("标题", max_length=120)
     description = models.TextField("说明", max_length=1000, blank=True)
     category = models.CharField("分类", max_length=80, blank=True)
+    lecture = models.ForeignKey(Lecture, verbose_name="所属讲次", on_delete=models.SET_NULL, null=True, blank=True, related_name="resources")
     file = models.FileField("文件", upload_to=random_resource_upload, validators=[validate_resource])
     original_filename = models.CharField("原文件名", max_length=255, blank=True, editable=False)
     created_at = models.DateTimeField("上传时间", auto_now_add=True)
@@ -250,3 +291,32 @@ class VisitLog(models.Model):
         verbose_name = "访问记录"
         verbose_name_plural = "访问记录"
     def __str__(self): return f"{self.ip_address or '-'} {self.path} @ {self.created_at:%F %T}"
+
+
+class Ticket(models.Model):
+    """课后小票：实名，只有老师能看。"""
+    author = models.ForeignKey(User, verbose_name="学生", on_delete=models.CASCADE, related_name="tickets")
+    lecture = models.ForeignKey(Lecture, verbose_name="讲次", on_delete=models.SET_NULL, null=True, blank=True, related_name="tickets")
+    body = models.TextField("内容", max_length=1000)
+    created_at = models.DateTimeField("提交时间", auto_now_add=True)
+
+    def __str__(self):
+        return self.body[:30]
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "课后小票"
+        verbose_name_plural = "课后小票"
+
+
+class TeacherDigest(models.Model):
+    """站外提醒的发送记录，用来判断哪些是「新」的待回应。"""
+    # 记录的是本次统计的截止时间（发送前取），这样统计和发送之间新来的内容下次还会算进去。
+    sent_at = models.DateTimeField("统计截止时间", default=timezone.now)
+    new_count = models.PositiveIntegerField("新增条数")
+    total_count = models.PositiveIntegerField("待回应总数")
+
+    class Meta:
+        ordering = ["-sent_at"]
+        verbose_name = "教师提醒记录"
+        verbose_name_plural = "教师提醒记录"

@@ -130,3 +130,20 @@ class ReportForm(forms.ModelForm):
         model = Report
         fields = ["reason"]
         labels = {"reason": "举报原因"}
+
+
+class QuickPostForm(forms.Form):
+    """首页一行发帖：只要正文，标题自动取第一句。勾选「只给老师看」就变成课后小票。"""
+    body = forms.CharField(label="内容", max_length=1000, strip=True, error_messages={
+        "required": "先写点什么再发布。", "max_length": "一行发帖最多 1000 字；更长的请用完整编辑器。"})
+    kind = forms.CharField(label="栏目", required=False)
+    anonymous = forms.BooleanField(label="匿名", required=False)
+    to_teacher = forms.BooleanField(label="只给老师看", required=False)
+
+    def clean_kind(self):
+        kind = self.cleaned_data.get("kind")
+        return kind if kind in Post.Kind.values else Post.Kind.TOPIC
+
+
+class PlanForm(forms.Form):
+    lecture = forms.IntegerField(required=False)

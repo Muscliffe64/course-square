@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}待回应{% endblock %}{% block breadcrumb %}待回应{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>待回应<span class="heading-dot">.</span></h1><p>学生发了、你还没接话的内容，最早的排在最前面。在帖子下留言、排进某一讲，或者点「无需回复」，它就会从这里消失。</p></div></div>
+<div class="pending-summary">
+  <a href="#pending-posts"><strong>{{ pending_post_list|length }}</strong><span>条帖子</span></a>
+  <a href="#pending-comments"><strong>{{ pending_comment_list|length }}</strong><span>条留言</span></a>
+  <a href="{% url 'admin:board_ticket_changelist' %}{% if ticket_lecture %}?lecture__id__exact={{ ticket_lecture.pk }}{% endif %}"><strong>{{ ticket_count }}</strong><span>张{% if ticket_lecture %}{{ ticket_lecture.label }}{% endif %}小票 ↗</span></a>
+</div>
+<section class="pending-section" id="pending-posts"><h2>帖子</h2>
+{% for post in pending_post_list %}
+<article class="pending-item" id="post-{{ post.pk }}">
+  <div class="pending-main">
+    <div class="pending-meta"><span class="category-tag {% if post.kind == 'showcase' %}showcase{% endif %}">{{ post.get_kind_display }}</span>{% include 'board/includes/author.html' with obj=post %}<time datetime="{{ post.created_at|date:'c' }}">{{ post.created_at|date:'n月j日 H:i' }} · 等了 {{ post.created_at|timesince:now }}</time>{% if post.like_count %}<span class="pending-votes">♥ {{ post.like_count }}</span>{% endif %}</div>
+    <a class="pending-title" href="{% url 'board:post_detail' post.pk %}">{{ post.title }}</a>
+    <p>{{ post.body|truncatechars:140 }}</p>
+  </div>
+  <div class="pending-actions">
+    <a class="button primary small-button" href="{% url 'board:post_detail' post.pk %}#comment-form">去回复</a>
+    {% if post.kind == 'topic' and upcoming_lecture %}<form method="post" action="{% url 'board:post_plan' post.pk %}">{% csrf_token %}<input type="hidden" name="lecture" value="{{ upcoming_lecture.pk }}"><input type="hidden" name="next" value="{% url 'board:pending' %}"><button class="button secondary small-button" type="submit">排进{{ upcoming_lecture.label }}</button></form>{% endif %}
+    <form method="post" action="{% url 'board:pending_dismiss' %}">{% csrf_token %}<input type="hidden" name="type" value="post"><input type="hidden" name="id" value="{{ post.pk }}"><button class="text-button" type="submit">无需回复</button></form>
+  </div>
+</article>
+{% empty %}<p class="pending-empty">没有待回应的帖子。</p>{% endfor %}
+</section>
+<section class="pending-section" id="pending-comments"><h2>留言</h2>
+{% for comment in pending_comment_list %}
+<article class="pending-item" id="comment-{{ comment.pk }}">
+  <div class="pending-main">
+    <div class="pending-meta">{% include 'board/includes/author.html' with obj=comment %}<time datetime="{{ comment.created_at|date:'c' }}">{{ comment.created_at|date:'n月j日 H:i' }} · 等了 {{ comment.created_at|timesince:now }}</time></div>
+    <a class="pending-title" href="{% url 'board:post_detail' comment.post_id %}#comment-{{ comment.pk }}">在「{{ comment.post.title|truncatechars:40 }}」下{% if comment.parent %}回复{% if comment.parent.anonymous %}匿名同学{% else %}{{ comment.parent.author.first_name|default:'课程成员' }}{% endif %}{% else %}留言{% endif %}</a>
+    <p>{{ comment.body|truncatechars:200 }}</p>
+  </div>
+  <div class="pending-actions">
+    <a class="button primary small-button" href="{% url 'board:post_detail' comment.post_id %}?reply_to={{ comment.pk }}#comment-form">去回复</a>
+    <form method="post" action="{% url 'board:pending_dismiss' %}">{% csrf_token %}<input type="hidden" name="type" value="comment"><input type="hidden" name="id" value="{{ comment.pk }}"><button class="text-button" type="submit">无需回复</button></form>
+  </div>
+</article>
+{% empty %}<p class="pending-empty">没有待回应的留言。</p>{% endfor %}
+</section>
+{% endblock %}

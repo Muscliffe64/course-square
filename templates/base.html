@@ -9,7 +9,6 @@
   <title>{% block title %}课程广场{% endblock %} · 人工智能导论</title>
   <link rel="icon" href="{% static 'board/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'board/app.css' %}">
-  <style>.notification-count{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c9633d;color:#fff;font-size:10px;line-height:18px;text-align:center}.notifications-list{display:flex;flex-direction:column;gap:10px;max-width:820px}.notification-item{display:flex;justify-content:space-between;gap:20px;padding:19px 22px;border:1px solid #e1e4dc;border-radius:10px;background:#fff}.notification-item p{font-size:12px;color:#879080;margin:5px 0 0}.notification-item time{font-size:11px;color:#9ba393;white-space:nowrap}.comment.reply{margin-left:33px;padding-left:16px;border-left:2px solid #e4eadc}.message.warning{background:#faf1e5;color:#956e46;border-color:#f0e2c9}.message.warning a{color:var(--orange);margin-left:6px;white-space:nowrap}</style>
   <script src="{% static 'board/app.js' %}" defer></script>
 </head>
 <body class="{% if not user.is_authenticated %}guest{% endif %}">
@@ -25,6 +24,7 @@
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
   </defs></svg>
   {% if user.is_authenticated %}
@@ -38,6 +38,7 @@
         <a href="{% url 'board:home' %}?kind=showcase" class="{% if kind == 'showcase' %}active{% endif %}"><svg><use href="#i-spark"/></svg><span>作品与分享</span></a>
         <a href="{% url 'board:home' %}?kind=resource" class="{% if kind == 'resource' or request.resolver_match.url_name == 'resources' or request.resolver_match.url_name == 'resource_read' %}active{% endif %}"><svg><use href="#i-file"/></svg><span>课程资料</span></a>
         <a href="{% url 'board:notifications' %}" class="{% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"><svg><use href="#i-bell"/></svg><span>消息通知</span>{% if notifications_unread_count %}<strong class="notification-count">{{ notifications_unread_count }}</strong>{% endif %}</a>
+        {% if user.is_staff %}<a href="{% url 'board:pending' %}" class="{% if request.resolver_match.url_name == 'pending' %}active{% endif %}"><svg><use href="#i-inbox"/></svg><span>待回应</span>{% if pending_count %}<strong class="notification-count">{{ pending_count }}</strong>{% endif %}</a>{% endif %}
       </nav>
       <div class="sidebar-note"><span class="tiny-dot"></span> 整周开放<p>想法不必成熟，<br>随时带来这里聊聊。</p></div>
       <div class="sidebar-bottom">

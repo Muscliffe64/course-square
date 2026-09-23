@@ -3,6 +3,8 @@
 {% block content %}
 <div class="page-heading"><div><div class="eyebrow">LEARN · SHARE · CONNECT</div><h1>{% if kind == 'topic' %}下节课想听什么{% elif kind == 'showcase' %}作品与分享{% elif kind == 'resource' %}课程资料{% else %}课程广场{% endif %}<span class="heading-dot">.</span></h1><p>{% if kind == 'topic' %}一个问题、一项技术、一个想一起拆解的案例。{% elif kind == 'showcase' %}正在做的、有点进展的，或者想找人聊聊的，都欢迎。{% elif kind == 'resource' %}老师发布的讲义与补充阅读，随时点开回看。{% else %}同学的提问、大家的分享、老师的资料，都在这里。{% endif %}</p></div>{% if kind == 'resource' %}{% if user.is_staff %}<a href="{% url 'admin:board_resource_add' %}" class="button primary">上传资料</a>{% endif %}{% else %}<a href="{% url 'board:post_create' %}{% if kind %}?kind={{ kind }}{% endif %}" class="button primary"><svg class="icon"><use href="#i-plus"/></svg> 发布{% if kind == 'showcase' %}分享{% else %}想法{% endif %}</a>{% endif %}</div>
 <div class="content-columns"><section class="feed-column" aria-label="课程动态">
+  {% if kind != 'resource' %}{% include 'board/includes/composer.html' %}{% endif %}
+  {% if show_ranking %}{% include 'board/includes/ranking.html' %}{% endif %}
   <nav class="feed-categories" aria-label="动态板块">
     <a href="?sort={{ sort }}&week={{ week }}" {% if not kind %}aria-current="page"{% endif %}>全部动态</a>
     <a href="?kind=topic&sort={{ sort }}&week={{ week }}" {% if kind == 'topic' %}aria-current="page"{% endif %}>下节课想听什么</a>

@@ -1,5 +1,5 @@
 <article class="post-card resource-feed-card">
-  <div class="post-top"><span class="category-tag resource"><svg class="icon"><use href="#i-file"/></svg> 课程资料</span>{% if resource.category %}<span class="muted">{{ resource.category }}</span>{% endif %}</div>
+  <div class="post-top"><span class="category-tag resource"><svg class="icon"><use href="#i-file"/></svg> 课程资料</span>{% if resource.lecture %}<span class="muted">{{ resource.lecture.label }}</span>{% endif %}{% if resource.category %}<span class="muted">{{ resource.category }}</span>{% endif %}</div>
   <h2><a href="{% if resource.is_markdown %}{% url 'board:resource_read' resource.pk %}{% else %}{% url 'board:resource_download' resource.pk %}{% endif %}">{{ resource.title }}</a></h2>
   {% if resource.description %}<p class="post-excerpt">{{ resource.description|truncatechars:180 }}</p>{% endif %}
   <div class="post-bottom">

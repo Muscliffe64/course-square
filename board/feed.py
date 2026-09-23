@@ -35,10 +35,10 @@ def course_feed_page(kind, sort, week_start, page_number):
     records = list(page.object_list)
     post_ids = [row['pk'] for row in records if row['feed_type'] == 'post']
     resource_ids = [row['pk'] for row in records if row['feed_type'] == 'resource']
-    post_objects = Post.objects.select_related('author').prefetch_related('gallery_images').annotate(
+    post_objects = Post.objects.select_related('author', 'planned_lecture').prefetch_related('gallery_images').annotate(
         like_count=Count('likes', distinct=True), comment_count=Count('comments', distinct=True),
     ).in_bulk(post_ids)
-    resource_objects = Resource.objects.in_bulk(resource_ids)
+    resource_objects = Resource.objects.select_related('lecture').in_bulk(resource_ids)
     objects = {'post': post_objects, 'resource': resource_objects}
     # A concurrent deletion should not make the whole page fail.
     page.object_list = [

@@ -1,0 +1,18 @@
+[Unit]
+Description=AI Course Square: push new pending items to the teacher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=course-square
+Group=course-square
+WorkingDirectory=/opt/course-square/current
+EnvironmentFile=/etc/course-square.env
+ExecStart=/opt/course-square/current/.venv/bin/python manage.py notify_pending
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/course-square

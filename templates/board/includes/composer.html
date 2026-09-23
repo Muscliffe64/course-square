@@ -1,0 +1,19 @@
+<form class="composer" method="post" action="{% url 'board:quick_post' %}" data-composer>
+  {% csrf_token %}
+  <label class="composer-lead" for="quick-body"><b>{% if quick_kind == 'showcase' %}最近做了点什么？{% else %}有什么想问、想听的？{% endif %}</b><span>一句话就行，第一句会自动当标题。</span></label>
+  <div class="composer-row">
+    <span class="avatar" aria-hidden="true">{{ user.first_name|default:'我'|slice:':1' }}</span>
+    <textarea id="quick-body" name="body" rows="1" maxlength="1000" required data-autosize placeholder="{% if quick_kind == 'showcase' %}比如：用 Whisper 给采访录音自动出了字幕，流程是……{% else %}比如：扩散模型到底是怎么从一堆噪声里画出图的？{% endif %}">{{ quick_draft.body|default:'' }}</textarea>
+    <button class="button primary" type="submit" data-composer-submit>发布</button>
+  </div>
+  <div class="composer-options">
+    <div class="composer-kinds" role="radiogroup" aria-label="发到哪个栏目" data-public-only>
+      <label><input type="radio" name="kind" value="topic" {% if quick_kind != 'showcase' %}checked{% endif %}><span>下节课想听</span></label>
+      <label><input type="radio" name="kind" value="showcase" {% if quick_kind == 'showcase' %}checked{% endif %}><span>作品与分享</span></label>
+    </div>
+    <label class="checkbox-label" data-public-only><input type="checkbox" name="anonymous" {% if quick_draft.anonymous %}checked{% endif %}> 匿名</label>
+    {% if not user.is_staff %}<label class="checkbox-label composer-private"><input type="checkbox" name="to_teacher" data-to-teacher {% if quick_draft.to_teacher %}checked{% endif %}> 只给老师看</label>{% endif %}
+    <a class="composer-full" href="{% url 'board:post_create' %}?kind={{ quick_kind }}">加图片、链接或长文 →</a>
+  </div>
+  {% if not user.is_staff %}<p class="composer-hint" data-teacher-hint {% if not quick_draft.to_teacher %}hidden{% endif %}>这会作为{% if ticket_lecture %}{{ ticket_lecture.label }}的{% endif %}课后小票交给老师：实名、只有老师能看到，不会出现在广场上。老师会在课上统一回应，不单独回复。</p>{% endif %}
+</form>
