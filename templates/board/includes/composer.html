@@ -1,5 +1,6 @@
 <form class="composer" method="post" action="{% url 'board:quick_post' %}" data-composer>
   {% csrf_token %}
+  <input type="hidden" name="tab" value="{{ kind }}">
   <label class="composer-lead" for="quick-body"><b>{% if quick_kind == 'showcase' %}最近做了点什么？{% else %}有什么想问、想听的？{% endif %}</b><span>一句话就行，第一句会自动当标题。</span></label>
   <div class="composer-row">
     <span class="avatar" aria-hidden="true">{{ user.first_name|default:'我'|slice:':1' }}</span>

@@ -57,7 +57,7 @@ class QuickPostTests(Base):
 
     def test_creates_post_with_derived_title(self):
         self.client.force_login(self.student)
-        response = self.client.post(self.url, {"body": "  注意力机制到底在注意什么？上课没跟上。 ", "kind": "topic", "anonymous": "on"})
+        response = self.client.post(self.url, {"body": "  注意力机制到底在注意什么？上课没跟上。 ", "kind": "topic", "tab": "topic", "anonymous": "on"})
         post = Post.objects.get()
         self.assertEqual(post.title, "注意力机制到底在注意什么？")
         self.assertEqual(post.body, "注意力机制到底在注意什么？上课没跟上。")
@@ -67,7 +67,8 @@ class QuickPostTests(Base):
 
     def test_showcase_kind_and_bad_kind_falls_back(self):
         self.client.force_login(self.student)
-        self.client.post(self.url, {"body": "做了个东西", "kind": "showcase"})
+        response = self.client.post(self.url, {"body": "做了个东西", "kind": "showcase", "tab": ""})
+        self.assertTrue(response["Location"].startswith("/#post-"))  # 回到发帖时所在的「全部动态」
         self.client.post(self.url, {"body": "另一个", "kind": "evil"})
         self.assertEqual(sorted(Post.objects.values_list("kind", flat=True)), ["showcase", "topic"])
 

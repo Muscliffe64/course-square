@@ -76,8 +76,8 @@ QUICK_DUPLICATE_WINDOW = timedelta(seconds=30)
 @require_POST
 def quick_post(request):
     form = QuickPostForm(request.POST)
-    kind = request.POST.get("kind") if request.POST.get("kind") in Post.Kind.values else ""
-    back = reverse("board:home") + (f"?kind={kind}" if kind else "")
+    tab = request.POST.get("tab") if request.POST.get("tab") in Post.Kind.values else ""
+    back = reverse("board:home") + (f"?kind={tab}" if tab else "")
     if not form.is_valid():
         request.session["quick_draft"] = {"body": request.POST.get("body", "")[:1000], "anonymous": bool(request.POST.get("anonymous")), "to_teacher": bool(request.POST.get("to_teacher"))}
         messages.error(request, " ".join(error for errors in form.errors.values() for error in errors))
