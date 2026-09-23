@@ -16,7 +16,7 @@ class PostAdmin(admin.ModelAdmin):
 
 @admin.register(Lecture)
 class LectureAdmin(admin.ModelAdmin):
-    list_display = ("number", "title", "date", "planned_count", "ticket_count")
+    list_display = ("number", "title", "date", "start_time", "planned_count", "ticket_count")
     ordering = ("number",)
     actions = ["export_tickets"]
 
@@ -40,6 +40,7 @@ class LectureAdmin(admin.ModelAdmin):
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
     list_display = ("lecture", "student", "body", "created_at")
+    list_select_related = ("author", "lecture")
     list_filter = ("lecture",)
     search_fields = ("body", "author__username", "author__first_name")
     date_hierarchy = "created_at"

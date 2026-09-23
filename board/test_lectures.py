@@ -19,6 +19,7 @@ from .tickets import pseudonym
 class Base(TestCase):
     def setUp(self):
         today = timezone.localdate()
+        self.today = today
         self.teacher = User.objects.create_user("teacher", first_name="韩老师", is_staff=True)
         self.student = User.objects.create_user("s1", first_name="张一")
         self.other = User.objects.create_user("s2", first_name="李二")
@@ -31,9 +32,26 @@ class LectureTests(Base):
     def test_upcoming_and_latest_held(self):
         self.assertEqual(Lecture.upcoming(), self.next)
         self.assertEqual(Lecture.latest_held(), self.past)
-        today_lecture = Lecture.objects.create(number=5, date=timezone.localdate())
-        self.assertEqual(Lecture.upcoming(), today_lecture)
-        self.assertEqual(Lecture.latest_held(), today_lecture)
+
+    def test_class_day_switches_at_start_time(self):
+        from datetime import datetime, time
+        lecture = Lecture.objects.create(number=5, date=self.today, start_time=time(14, 0))
+        morning = timezone.make_aware(datetime.combine(self.today, time(9, 0)))
+        evening = timezone.make_aware(datetime.combine(self.today, time(19, 0)))
+        with mock.patch("django.utils.timezone.now", return_value=morning):
+            self.assertEqual(Lecture.upcoming(), lecture)       # 上课前：投票还算这一讲
+            self.assertEqual(Lecture.latest_held(), self.past)  # 早上交的小票还归上一讲
+            self.assertFalse(lecture.is_past)
+        with mock.patch("django.utils.timezone.now", return_value=evening):
+            self.assertEqual(Lecture.upcoming(), self.next)
+            self.assertEqual(Lecture.latest_held(), lecture)
+            self.assertTrue(lecture.is_past)
+
+    def test_deleting_lecture_reopens_planned_posts(self):
+        post = Post.objects.create(author=self.student, title="t", body="b", kind="topic", planned_lecture=self.next, status="planned")
+        self.next.delete()
+        post.refresh_from_db()
+        self.assertEqual((post.planned_lecture, post.status), (None, "open"))
 
 
 class DeriveTitleTests(TestCase):
@@ -87,6 +105,9 @@ class QuickPostTests(Base):
         self.client.post(self.url, {"body": "同一句话"})
         self.client.post(self.url, {"body": "同一句话"})
         self.assertEqual(Post.objects.count(), 1)
+        # 改成匿名再发同一句，是新的一条，不能把人带回实名那条
+        self.client.post(self.url, {"body": "同一句话", "anonymous": "on"})
+        self.assertEqual(list(Post.objects.order_by("pk").values_list("anonymous", flat=True)), [False, True])
 
     def test_to_teacher_makes_private_real_name_ticket(self):
         self.client.force_login(self.student)
@@ -275,6 +296,19 @@ class NotifyTests(Base):
         urlopen.assert_not_called()
         self.assertIn("没有新的待回应", out)
 
+    def test_items_committed_after_snapshot_are_sent_next_time(self):
+        env = {"TEACHER_NOTIFY_WEBHOOK": "https://qyapi.weixin.qq.com/x", "TEACHER_NOTIFY_QUIET_HOURS": ""}
+        self.run_command(env)
+        late = Post.objects.create(author=self.other, title="晚到的帖子", body="b", kind="topic")
+        Post.objects.filter(pk=late.pk).update(created_at=timezone.now() - timedelta(hours=1))  # created_at 早于上次推送
+        out, urlopen = self.run_command(env)
+        self.assertIn("晚到的帖子", json.loads(urlopen.call_args.args[0].data)["text"]["content"])
+
+    def test_generic_webhook_2xx_counts_as_sent(self):
+        env = {"TEACHER_NOTIFY_WEBHOOK": "https://hooks.example.test/x", "TEACHER_NOTIFY_QUIET_HOURS": ""}
+        self.run_command(env, reply=b'{"code":200}')
+        self.assertEqual(TeacherDigest.objects.count(), 1)
+
     def test_error_reply_is_not_recorded(self):
         env = {"TEACHER_NOTIFY_WEBHOOK": "https://qyapi.weixin.qq.com/x", "TEACHER_NOTIFY_QUIET_HOURS": ""}
         with self.assertRaises(CommandError):
@@ -303,6 +337,7 @@ class NotifyTests(Base):
 class TicketExportTests(Base):
     def test_export_replaces_names_with_stable_codes(self):
         Ticket.objects.create(author=self.student, lecture=self.past, body="没懂梯度")
+        Ticket.objects.create(author=self.other, lecture=self.past, body='=HYPERLINK("http://x","y")')
         Ticket.objects.create(author=self.student, lecture=self.next, body="还是没懂")
         self.teacher.is_superuser = True
         self.teacher.save()
@@ -312,5 +347,6 @@ class TicketExportTests(Base):
         text = response.content.decode("utf-8-sig")
         self.assertIn("没懂梯度", text)
         self.assertNotIn("张一", text)
+        self.assertIn("'=HYPERLINK", text)
         self.assertEqual(text.count(pseudonym(self.student.pk)), 2)
         self.assertNotEqual(pseudonym(self.student.pk), pseudonym(self.other.pk))

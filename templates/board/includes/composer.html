@@ -13,7 +13,7 @@
       <label><input type="radio" name="kind" value="showcase" {% if quick_kind == 'showcase' %}checked{% endif %}><span>作品与分享</span></label>
     </div>
     <label class="checkbox-label" data-public-only><input type="checkbox" name="anonymous" {% if quick_draft.anonymous %}checked{% endif %}> 匿名</label>
-    {% if not user.is_staff %}<label class="checkbox-label composer-private"><input type="checkbox" name="to_teacher" data-to-teacher {% if quick_draft.to_teacher %}checked{% endif %}> 只给老师看</label>{% endif %}
+    {% if not user.is_staff %}<label class="checkbox-label composer-private"><input type="checkbox" name="to_teacher" data-to-teacher {% if quick_draft.to_teacher %}checked{% endif %}> 只给老师看（实名）</label>{% endif %}
     <a class="composer-full" href="{% url 'board:post_create' %}?kind={{ quick_kind }}">加图片、链接或长文 →</a>
   </div>
   {% if not user.is_staff %}<p class="composer-hint" data-teacher-hint {% if not quick_draft.to_teacher %}hidden{% endif %}>这会作为{% if ticket_lecture %}{{ ticket_lecture.label }}的{% endif %}课后小票交给老师：实名、只有老师能看到，不会出现在广场上。老师会在课上统一回应，不单独回复。</p>{% endif %}

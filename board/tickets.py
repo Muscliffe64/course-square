@@ -14,6 +14,11 @@ def pseudonym(user_id):
     return "S" + digest[:6].upper()
 
 
+def spreadsheet_safe(text):
+    """学生写的内容以 = + - @ 开头时，Excel 会当公式执行；前面加一个单引号让它只当文字。"""
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 def tickets_csv(tickets, filename):
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -22,5 +27,5 @@ def tickets_csv(tickets, filename):
     writer.writerow(["讲次", "代号", "内容", "提交时间"])
     for ticket in tickets.select_related("lecture").order_by("lecture__number", "created_at"):
         writer.writerow([ticket.lecture.label if ticket.lecture else "未分讲次", pseudonym(ticket.author_id),
-                         ticket.body, timezone.localtime(ticket.created_at).strftime("%Y-%m-%d %H:%M")])
+                         spreadsheet_safe(ticket.body), timezone.localtime(ticket.created_at).strftime("%Y-%m-%d %H:%M")])
     return response

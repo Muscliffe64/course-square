@@ -22,7 +22,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from board.models import TeacherDigest
-from board.pending import new_since, pending_counts
+from board.models import Comment, Post, Ticket
+from board.pending import max_ids, new_after, pending_counts
 
 TIMEOUT_SECONDS = 10
 MAX_LISTED = 5
@@ -67,17 +68,23 @@ def build_request(webhook, title, body):
     return urllib.request.Request(webhook, data=json.dumps(payload, ensure_ascii=False).encode(), headers={"Content-Type": "application/json"})
 
 
-def check_reply(reply):
-    """这些服务出错时常常仍返回 HTTP 200，要看返回体里的错误码。"""
+ERROR_KEYS = {"ftqq.com": "code", "qyapi.weixin.qq.com": "errcode", "oapi.dingtalk.com": "errcode", "feishu.cn": "code", "larksuite.com": "code"}
+
+
+def check_reply(webhook, reply):
+    """已知的推送服务出错时仍返回 HTTP 200，要看返回体里的错误码；其他地址只要 2xx 就算成功。"""
+    host = urllib.parse.urlparse(webhook).hostname or ""
+    key = next((k for suffix, k in ERROR_KEYS.items() if host == suffix or host.endswith("." + suffix)), None)
+    if key is None:
+        return
     try:
         data = json.loads(reply)
     except ValueError:
         return
     if not isinstance(data, dict):
         return
-    for key in ("errcode", "code", "StatusCode"):
-        if data.get(key) not in (None, 0):
-            raise CommandError(f"推送服务返回错误：{reply[:300]}")
+    if data.get(key) not in (None, 0):
+        raise CommandError(f"推送服务返回错误：{reply[:300]}")
 
 
 class Command(BaseCommand):
@@ -92,14 +99,23 @@ class Command(BaseCommand):
             self.stdout.write("未配置 TEACHER_NOTIFY_WEBHOOK，跳过。")
             return
         now = timezone.localtime()
-        cutoff = timezone.now()
         if in_quiet_hours(os.getenv("TEACHER_NOTIFY_QUIET_HOURS", "").strip(), now.hour) and not dry_run:
             self.stdout.write("免打扰时段，跳过。")
             return
+        # 先记下此刻的最大 id；之后才提交的内容 id 更大，留给下一次。
+        top_post, top_comment, top_ticket = max_ids()
         last = TeacherDigest.objects.first()
-        # 第一次运行只看最近一天，避免把历史积压一次性推过去。
-        since = last.sent_at if last else now - timedelta(days=1)
-        posts, comments, ticket_count = new_since(since, cutoff)
+        if last:
+            floors = (last.last_post_id, last.last_comment_id, last.last_ticket_id)
+        else:
+            # 第一次运行只看最近一天，避免把历史积压一次性推过去。
+            day_ago = now - timedelta(days=1)
+            floors = tuple((model.objects.filter(created_at__lt=day_ago).order_by("-pk").values_list("pk", flat=True).first() or 0)
+                           for model in (Post, Comment, Ticket))
+        posts, comments, tickets = new_after(*floors)
+        posts = [p for p in posts if p.pk <= top_post]
+        comments = [c for c in comments if c.pk <= top_comment]
+        ticket_count = sum(1 for pk in tickets if pk <= top_ticket)
         new_count = len(posts) + len(comments) + ticket_count
         if not new_count:
             self.stdout.write("没有新的待回应。")
@@ -115,6 +131,7 @@ class Command(BaseCommand):
                 reply = response.read(2000).decode("utf-8", errors="replace")
         except OSError as exc:  # 网络错误不记录，下一次会连同新内容一起重试
             raise CommandError(f"推送失败：{exc}")
-        check_reply(reply)
-        TeacherDigest.objects.create(sent_at=cutoff, new_count=new_count, total_count=total)
+        check_reply(webhook, reply)
+        TeacherDigest.objects.create(new_count=new_count, total_count=total,
+                                     last_post_id=top_post, last_comment_id=top_comment, last_ticket_id=top_ticket)
         self.stdout.write(f"已推送：{title}（服务返回 {reply[:200]}）")

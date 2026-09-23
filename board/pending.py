@@ -31,11 +31,15 @@ def pending_counts():
     return {"posts": pending_posts().count(), "comments": pending_comments().count()}
 
 
-def new_since(since, until):
-    """(since, until] 之间新出现、且仍待回应的内容（用于站外提醒）。"""
-    window = {"created_at__gt": since, "created_at__lte": until}
-    return (list(pending_posts().filter(**window)), list(pending_comments().filter(**window)),
-            Ticket.objects.filter(**window).count())
+def new_after(last_post_id, last_comment_id, last_ticket_id):
+    """上次推送之后新出现、且仍待回应的内容（用于站外提醒）。"""
+    return (list(pending_posts().filter(pk__gt=last_post_id)), list(pending_comments().filter(pk__gt=last_comment_id)),
+            list(Ticket.objects.filter(pk__gt=last_ticket_id).values_list("pk", flat=True)))
+
+
+def max_ids():
+    from django.db.models import Max
+    return tuple(model.objects.aggregate(m=Max("pk"))["m"] or 0 for model in (Post, Comment, Ticket))
 
 
 def derive_title(body, limit=30):

@@ -1,7 +1,7 @@
 <section class="ranking" id="ranking" aria-labelledby="ranking-title">
   <div class="ranking-head">
     <div><h2 id="ranking-title">下节课想听什么 · 投票</h2>
-    <p>点 ♥ 就是投一票，可以投给多条。{% if ranking_upcoming %}截止到{{ ranking_upcoming.label }}（{{ ranking_upcoming.date|date:'n月j日' }}）上课前，{% endif %}<strong>票数最高的一条，{% if ranking_upcoming %}{{ ranking_upcoming.label }}{% else %}下节课{% endif %}一定讲。</strong></p></div>
+    <p>点 ♥ 就是投一票，可以投给多条。{% if ranking_upcoming %}截止到{{ ranking_upcoming.label }}（{{ ranking_upcoming.date|date:'n月j日' }} {{ ranking_upcoming.start_time|time:'H:i' }}）上课前，{% endif %}<strong>票数最高的一条，{% if ranking_upcoming %}{{ ranking_upcoming.label }}{% else %}下节课{% endif %}一定讲。</strong></p></div>
     <span class="ranking-meta">{{ ranking_voters }} 人投过</span>
   </div>
   <ol class="ranking-list">

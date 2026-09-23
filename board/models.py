@@ -1,9 +1,12 @@
+import datetime
 import uuid
 import warnings
 from pathlib import Path
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 from .thumbnails import ensure_thumbnail, thumbnail_upload
@@ -57,23 +60,31 @@ class Lecture(models.Model):
     number = models.PositiveSmallIntegerField("第几讲", unique=True)
     title = models.CharField("主题", max_length=120, blank=True)
     date = models.DateField("上课日期")
+    start_time = models.TimeField("上课时间", default=datetime.time(14, 0), help_text="以开课时刻为界：之前投票还算这一讲，之后交的小票归这一讲。")
+
+    @staticmethod
+    def _now():
+        now = timezone.localtime()
+        return now.date(), now.time()
 
     @classmethod
-    def upcoming(cls, today=None):
-        """下一次要上的课（含今天）。"""
-        from django.utils import timezone
-        return cls.objects.filter(date__gte=today or timezone.localdate()).order_by("date", "number").first()
+    def upcoming(cls):
+        """还没开讲的最近一讲。"""
+        today, clock = cls._now()
+        return (cls.objects.filter(models.Q(date__gt=today) | models.Q(date=today, start_time__gt=clock))
+                .order_by("date", "start_time", "number").first())
 
     @classmethod
-    def latest_held(cls, today=None):
-        """最近一次已经上过的课（含今天），课后小票挂在这里。"""
-        from django.utils import timezone
-        return cls.objects.filter(date__lte=today or timezone.localdate()).order_by("-date", "-number").first()
+    def latest_held(cls):
+        """最近一次已经开讲的课，课后小票挂在这里。"""
+        today, clock = cls._now()
+        return (cls.objects.filter(models.Q(date__lt=today) | models.Q(date=today, start_time__lte=clock))
+                .order_by("-date", "-start_time", "-number").first())
 
     @property
     def is_past(self):
-        from django.utils import timezone
-        return self.date < timezone.localdate()
+        today, clock = self._now()
+        return self.date < today or (self.date == today and self.start_time <= clock)
 
     @property
     def label(self):
@@ -86,6 +97,12 @@ class Lecture(models.Model):
         ordering = ["number"]
         verbose_name = "讲次"
         verbose_name_plural = "讲次"
+
+
+@receiver(pre_delete, sender=Lecture)
+def reopen_planned_posts(sender, instance, **kwargs):
+    """删掉一讲时，排在这一讲的提问回到「开放」，重新进投票和待回应。"""
+    Post.objects.filter(planned_lecture=instance, status=Post.Status.PLANNED).update(status=Post.Status.OPEN)
 
 class Post(models.Model):
     class Kind(models.TextChoices):
@@ -311,8 +328,11 @@ class Ticket(models.Model):
 
 class TeacherDigest(models.Model):
     """站外提醒的发送记录，用来判断哪些是「新」的待回应。"""
-    # 记录的是本次统计的截止时间（发送前取），这样统计和发送之间新来的内容下次还会算进去。
-    sent_at = models.DateTimeField("统计截止时间", default=timezone.now)
+    sent_at = models.DateTimeField("发送时间", default=timezone.now)
+    # 已推送过的最大 id。SQLite 写入串行，id 按提交顺序递增，比按时间窗口判断可靠。
+    last_post_id = models.BigIntegerField(default=0, db_default=0)
+    last_comment_id = models.BigIntegerField(default=0, db_default=0)
+    last_ticket_id = models.BigIntegerField(default=0, db_default=0)
     new_count = models.PositiveIntegerField("新增条数")
     total_count = models.PositiveIntegerField("待回应总数")
 

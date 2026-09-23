@@ -89,9 +89,9 @@ def quick_post(request):
         # 双击或刷新重复提交：同一内容 30 秒内只记一次。
         if not Ticket.objects.filter(author=request.user, body=data["body"], created_at__gte=recent).exists():
             Ticket.objects.create(author=request.user, lecture=lecture, body=data["body"])
-        messages.success(request, f"已交给老师{('（' + lecture.label + '的课后小票）') if lecture else ''}。只有老师能看到，老师会在课上统一回应。")
+        messages.success(request, f"已实名交给老师{('（' + lecture.label + '的课后小票）') if lecture else ''}。只有老师能看到，老师会在课上统一回应。")
         return redirect(back)
-    post = Post.objects.filter(author=request.user, body=data["body"], created_at__gte=recent).first()
+    post = Post.objects.filter(author=request.user, body=data["body"], kind=data["kind"], anonymous=data["anonymous"], created_at__gte=recent).first()
     if post is None:
         post = Post.objects.create(author=request.user, kind=data["kind"], title=derive_title(data["body"]), body=data["body"], anonymous=data["anonymous"])
     messages.success(request, "已发布。")
@@ -312,7 +312,7 @@ def settings_view(request):
 
 @login_required
 def notifications(request):
-    items = request.user.notifications.select_related("actor", "post", "comment")
+    items = request.user.notifications.select_related("actor", "post__planned_lecture", "comment")
     return render(request, "board/notifications.html", common_context() | {"notifications": Paginator(items, 30).get_page(request.GET.get("page"))})
 
 @login_required
