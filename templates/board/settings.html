@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}账号设置{% endblock %}{% block breadcrumb %}账号设置{% endblock %}
+{% block content %}
+<div class="narrow-content"><div class="page-heading"><div><div class="eyebrow">YOUR SPACE</div><h1>账号设置<span class="heading-dot">.</span></h1><p>管理你的登录信息。</p></div></div>
+<section class="form-card"><div class="profile-heading"><span class="avatar large">{{ user.first_name|default:'我'|slice:':1' }}</span><div><h2>{{ user.first_name|default:'课程管理员' }}</h2><p class="muted">{% if user.is_staff %}管理员{% else %}课程成员{% endif %}</p></div></div><dl class="account-facts"><div><dt>{% if user.is_staff %}账号{% else %}学号{% endif %}</dt><dd>{{ user.username }}</dd></div><div><dt>课程</dt><dd>人工智能导论</dd></div></dl>
+{% if using_default_password %}<div class="password-notice"><strong>你正在使用默认密码</strong><p>默认密码和学号相同。建议设置个人密码，避免他人登录你的账号；你也可以保持当前密码。</p></div>{% endif %}
+<div class="settings-actions"><a href="{% url 'password_change' %}" class="button primary"><svg class="icon"><use href="#i-lock"/></svg> 修改密码</a><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="button secondary">退出登录</button></form></div>
+</section></div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}{% if kind == 'topic' %}下节课想听什么{% elif kind == 'showcase' %}作品与分享{% elif kind == 'resource' %}课程资料{% else %}课程广场{% endif %}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">LEARN · SHARE · CONNECT</div><h1>{% if kind == 'topic' %}下节课想听什么{% elif kind == 'showcase' %}作品与分享{% elif kind == 'resource' %}课程资料{% else %}课程广场{% endif %}<span class="heading-dot">.</span></h1><p>{% if kind == 'topic' %}一个问题、一项技术、一个想一起拆解的案例。{% elif kind == 'showcase' %}正在做的、有点进展的，或者想找人聊聊的，都欢迎。{% elif kind == 'resource' %}老师发布的讲义与补充阅读，随时点开回看。{% else %}同学的提问、大家的分享、老师的资料，都在这里。{% endif %}</p></div>{% if kind == 'resource' %}{% if user.is_staff %}<a href="{% url 'admin:board_resource_add' %}" class="button primary">上传资料</a>{% endif %}{% else %}<a href="{% url 'board:post_create' %}{% if kind %}?kind={{ kind }}{% endif %}" class="button primary"><svg class="icon"><use href="#i-plus"/></svg> 发布{% if kind == 'showcase' %}分享{% else %}想法{% endif %}</a>{% endif %}</div>
+<div class="content-columns"><section class="feed-column" aria-label="课程动态">
+  <nav class="feed-categories" aria-label="动态板块">
+    <a href="?sort={{ sort }}&week={{ week }}" {% if not kind %}aria-current="page"{% endif %}>全部动态</a>
+    <a href="?kind=topic&sort={{ sort }}&week={{ week }}" {% if kind == 'topic' %}aria-current="page"{% endif %}>下节课想听什么</a>
+    <a href="?kind=showcase&sort={{ sort }}&week={{ week }}" {% if kind == 'showcase' %}aria-current="page"{% endif %}>作品与分享</a>
+    <a href="?kind=resource&sort={{ sort }}&week={{ week }}" {% if kind == 'resource' %}aria-current="page"{% endif %}>课程资料</a>
+  </nav>
+  <div class="feed-toolbar"><div class="segmented"><a class="{% if sort != 'popular' %}selected{% endif %}" href="?kind={{ kind|default:'' }}&sort=new&week={{ week|default:'all' }}">最新发布</a><a class="{% if sort == 'popular' %}selected{% endif %}" href="?kind={{ kind|default:'' }}&sort=popular&week={{ week|default:'all' }}">讨论热度</a></div><a class="week-filter {% if week == 'current' %}selected{% endif %}" href="?kind={{ kind|default:'' }}&sort={{ sort|default:'new' }}&week={% if week == 'current' %}all{% else %}current{% endif %}">{% if week == 'current' %}✓ 只看本周{% else %}只看本周{% endif %}</a></div>
+  <div class="post-list">
+    {% for entry in page_obj %}
+      {% if entry.resource %}{% include 'board/includes/resource_feed_card.html' with resource=entry.resource %}
+      {% else %}{% include 'board/includes/post_card.html' with post=entry.post %}{% endif %}
+    {% empty %}
+      <div class="empty-state"><div class="empty-illustration"><svg><use href="{% if kind == 'resource' %}#i-file{% else %}#i-chat{% endif %}"/></svg><span>+</span></div>
+        <h2>{% if week == 'current' %}本周还没有{% if kind == 'resource' %}新资料{% else %}新动态{% endif %}{% elif kind == 'resource' %}课程资料，陆续更新{% else %}从一个小小的想法开始{% endif %}</h2>
+        <p>{% if kind == 'resource' %}老师上传后，讲义与补充阅读会自动出现在这里。{% else %}分享一个新尝试，或写下你想在下节课聊的问题。{% endif %}</p>
+        {% if week == 'current' %}<a class="button secondary" href="?kind={{ kind }}&sort={{ sort }}&week=all">查看全部时间</a>
+        {% elif kind == 'resource' %}{% if user.is_staff %}<a class="button secondary" href="{% url 'admin:board_resource_add' %}">上传第一份资料</a>{% endif %}
+        {% else %}<a class="button secondary" href="{% url 'board:post_create' %}{% if kind %}?kind={{ kind }}{% endif %}">{% if kind == 'showcase' %}分享我的尝试{% else %}写下我的问题{% endif %}</a>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% if page_obj.has_other_pages %}<nav class="pagination" aria-label="翻页">{% if page_obj.has_previous %}<a class="button secondary small-button" href="?kind={{ kind|default:'' }}&sort={{ sort }}&week={{ week }}&page={{ page_obj.previous_page_number }}">上一页</a>{% endif %}<span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="button secondary small-button" href="?kind={{ kind|default:'' }}&sort={{ sort }}&week={{ week }}&page={{ page_obj.next_page_number }}">下一页</a>{% endif %}</nav>{% endif %}
+</section><aside class="context-column" aria-label="课程公告与说明">
+  <section class="notice-panel"><div class="panel-kicker"><span class="tiny-dot"></span> 课堂公告{% if user.is_staff %}<a href="{% url 'admin:board_announcement_changelist' %}">管理 ↗</a>{% endif %}</div>{% for notice in announcements %}<article class="notice"><h3>{{ notice.title }}</h3><div class="rich-text">{{ notice.body|linebreaksbr }}</div><time>{{ notice.updated_at|date:'n月j日' }}</time></article>{% empty %}<h3>欢迎来到课程广场</h3><p>这里整周开放。下节课想听什么，随时写下来；有了新尝试，也欢迎分享。</p>{% if user.is_staff %}<a href="{% url 'admin:board_announcement_add' %}" class="text-link">发布第一条公告 →</a>{% endif %}{% endfor %}</section>
+  <section class="side-panel"><h3>我们的课程空间</h3><div class="space-stats"><a href="{% url 'board:home' %}?kind=topic"><span>课前想法</span><strong>{{ topic_count|default:0 }}</strong></a><a href="{% url 'board:home' %}?kind=showcase"><span>作品与分享</span><strong>{{ showcase_count|default:0 }}</strong></a><a href="{% url 'board:home' %}?kind=resource"><span>课程资料</span><strong>{{ resource_count|default:0 }}</strong></a></div></section>
+  <section class="side-panel participation"><svg class="icon"><use href="#i-spark"/></svg><h3>不必等到想明白了再发</h3><p>未完成的想法也欢迎。友善回应，尊重彼此，不公开他人的个人信息。</p></section>
+</aside></div>
+{% endblock %}

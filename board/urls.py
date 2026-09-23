@@ -1,0 +1,25 @@
+from django.urls import path
+from . import views
+app_name = "board"
+urlpatterns = [
+    path("", views.home, name="home"),
+    path("posts/new/", views.post_create, name="post_create"),
+    path("posts/<int:pk>/edit/", views.post_edit, name="post_edit"),
+    path("posts/<int:pk>/", views.post_detail, name="post_detail"),
+    path("posts/<int:pk>/delete/", views.post_delete, name="post_delete"),
+    path("posts/<int:pk>/like/", views.post_like, name="post_like"),
+    path("posts/<int:pk>/comments/", views.comment_create, name="comment_create"),
+    path("comments/<int:pk>/delete/", views.comment_delete, name="comment_delete"),
+    path("resources/", views.resources, name="resources"),
+    path("resources/<int:pk>/download/", views.resource_download, name="resource_download"),
+    path("resources/<int:pk>/read/", views.resource_read, name="resource_read"),
+    path("posts/<int:pk>/image/", views.post_image, name="post_image"),
+    path("posts/<int:post_pk>/images/<int:image_pk>/", views.post_gallery_image, name="post_gallery_image"),
+    path("posts/<int:post_pk>/images/<int:image_pk>/thumb/", views.post_gallery_thumb, name="post_gallery_thumb"),
+    path("posts/<int:pk>/audio/", views.post_audio, name="post_audio"),
+    path("posts/<int:pk>/report/", views.report_post, name="report_post"),
+    path("settings/", views.settings_view, name="settings"),
+    path("notifications/", views.notifications, name="notifications"),
+    path("notifications/read/", views.notifications_read, name="notifications_read"),
+    path("notifications/<int:pk>/open/", views.notification_open, name="notification_open"),
+]

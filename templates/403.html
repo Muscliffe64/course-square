@@ -1,0 +1,3 @@
+{% extends 'base.html' %}{% block title %}无法访问{% endblock %}
+{% block content %}<div class="empty-state"><h1>暂时无法完成这个操作</h1><p>请确认你有操作权限；如果页面已打开很久，请刷新后再试。</p><a class="button secondary" href="{% url 'board:home' %}">返回广场</a></div>{% endblock %}
+{% block guest_content %}<div class="standalone-message"><h1>请重新打开登录页面</h1><p>当前请求未通过验证，刷新登录页面后再试。</p><a class="button primary" href="{% url 'login' %}">返回登录</a></div>{% endblock %}

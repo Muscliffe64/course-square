@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}{{ resource.title }}{% endblock %}{% block breadcrumb %}课程资料 · 阅读{% endblock %}
+{% block content %}
+<style>
+.reader-wrap { max-width: 780px; margin: 0 auto; }
+.reader-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.reader-head h1 { margin: 4px 0 0; font-size: 24px; color: var(--ink); }
+.reader-meta { color: var(--muted); font-size: 13px; }
+.reader-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.reader-body { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 36px 44px; line-height: 1.85; font-size: 15.5px; color: var(--text); word-wrap: break-word; }
+.reader-body h1, .reader-body h2, .reader-body h3, .reader-body h4 { color: var(--ink); line-height: 1.4; margin: 1.6em 0 0.6em; }
+.reader-body h1 { font-size: 22px; } .reader-body h2 { font-size: 19px; } .reader-body h3 { font-size: 16.5px; }
+.reader-body h1:first-child, .reader-body h2:first-child, .reader-body h3:first-child { margin-top: 0; }
+.reader-body p { margin: 0.8em 0; }
+.reader-body a { color: var(--orange); }
+.reader-body code { background: var(--green-soft); border-radius: 4px; padding: 2px 6px; font-size: 0.9em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.reader-body pre { background: #243b37; color: #eef3ef; border-radius: 10px; padding: 14px 18px; overflow-x: auto; line-height: 1.6; }
+.reader-body pre code { background: none; padding: 0; color: inherit; }
+.reader-body blockquote { margin: 1em 0; padding: 4px 16px; border-left: 3px solid var(--orange); background: var(--orange-soft); border-radius: 0 8px 8px 0; color: var(--text); }
+.reader-body ul, .reader-body ol { padding-left: 1.6em; margin: 0.8em 0; }
+.reader-body table { border-collapse: collapse; margin: 1em 0; width: 100%; font-size: 14.5px; }
+.reader-body th, .reader-body td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; }
+.reader-body th { background: var(--green-soft); }
+.reader-body img { max-width: 100%; border-radius: 8px; }
+.reader-body hr { border: none; border-top: 1px solid var(--line); margin: 2em 0; }
+@media (max-width: 640px) { .reader-body { padding: 22px 18px; } }
+</style>
+<div class="reader-wrap">
+  <div class="reader-head">
+    <div>
+      <div class="reader-meta">{{ resource.get_category_display|default:resource.category }} · {{ resource.created_at|date:'Y年n月j日' }}</div>
+      <h1>{{ resource.title }}</h1>
+    </div>
+    <div class="reader-actions">
+      <a class="button secondary small-button" href="{% url 'board:home' %}?kind=resource">返回资料</a>
+      <a class="button primary small-button" href="{% url 'board:resource_download' resource.pk %}"><svg class="icon"><use href="#i-download"/></svg> 下载</a>
+    </div>
+  </div>
+  {% if resource.description %}<p class="reader-meta" style="margin:-8px 0 16px;">{{ resource.description }}</p>{% endif %}
+  <article class="reader-body">{{ content_html|safe }}</article>
+</div>
+{% endblock %}

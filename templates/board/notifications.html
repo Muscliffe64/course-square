@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}消息通知{% endblock %}{% block breadcrumb %}消息通知{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>消息通知</h1><p>{% if user.is_staff %}学生留言、回复和与你有关的点赞。{% else %}你的留言收到回复、帖子获得点赞时，会在这里提醒。{% endif %}</p></div>
+<form method="post" action="{% url 'board:notifications_read' %}">{% csrf_token %}<button class="button secondary">全部标为已读</button></form></div>
+<section class="notifications-list">
+{% for item in notifications %}
+<article class="notification-item"><div>
+{% if not item.read_at %}<span class="notification-count">未读</span>{% endif %}
+<strong>{% if item.kind == 'post_like' %}有人赞同了你的帖子{% else %}{% if item.actor_anonymous and not user.is_staff %}匿名同学{% else %}{{ item.actor.first_name|default:item.actor.username|default:'课程成员' }}{% endif %}{% if item.kind == 'new_comment' %} 留下了新评论{% else %} 回复了你的留言{% endif %}{% endif %}</strong>
+<p>{{ item.post.title }}</p>{% if item.comment %}<p>{{ item.comment.body|truncatechars:160 }}</p>{% endif %}
+<time>{{ item.created_at|date:'Y年n月j日 H:i' }}</time>
+<form method="post" action="{% url 'board:notification_open' item.pk %}">{% csrf_token %}<button class="button secondary small-button">查看讨论{% if item.comment %}并回复{% endif %}</button></form>
+</div></article>
+{% empty %}<div class="empty-state"><h2>暂时没有消息</h2></div>{% endfor %}
+</section>
+{% if notifications.has_previous %}<a href="?page={{ notifications.previous_page_number }}">上一页</a>{% endif %}
+{% if notifications.has_next %}<a href="?page={{ notifications.next_page_number }}">下一页</a>{% endif %}
+{% endblock %}

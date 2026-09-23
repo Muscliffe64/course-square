@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+.stats-total { font-size: 15px; margin: 12px 0 24px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+.stats-grid h2 { font-size: 15px; margin: 0 0 8px; }
+.stats-grid table { width: 100%; border-collapse: collapse; }
+.stats-grid th, .stats-grid td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border-color, #ddd); font-size: 13px; }
+.stats-grid th { background: var(--darkened-bg, #f6f6f6); }
+</style>
+<div class="stats-total">累计访问：<strong>{{ total }}</strong> 次（不含静态资源）</div>
+<div class="stats-grid">
+  <section>
+    <h2>按 IP 统计（前 100）</h2>
+    <table><thead><tr><th>IP 地址</th><th>访问次数</th></tr></thead>
+    <tbody>{% for row in by_ip %}<tr><td>{{ row.ip_address|default:"未知" }}</td><td>{{ row.visits }}</td></tr>{% empty %}<tr><td colspan="2">暂无记录</td></tr>{% endfor %}</tbody></table>
+  </section>
+  <section>
+    <h2>按用户统计（前 100）</h2>
+    <table><thead><tr><th>用户</th><th>访问次数</th></tr></thead>
+    <tbody>{% for row in by_user %}<tr><td>{{ row.user__first_name|default:row.user__username }}</td><td>{{ row.visits }}</td></tr>{% empty %}<tr><td colspan="2">暂无记录</td></tr>{% endfor %}</tbody></table>
+  </section>
+  <section>
+    <h2>按天统计（近 30 天）</h2>
+    <table><thead><tr><th>日期</th><th>访问次数</th><th>独立 IP 数</th></tr></thead>
+    <tbody>{% for row in by_day %}<tr><td>{{ row.day|date:"Y-m-d" }}</td><td>{{ row.visits }}</td><td>{{ row.unique_ips }}</td></tr>{% empty %}<tr><td colspan="3">暂无记录</td></tr>{% endfor %}</tbody></table>
+  </section>
+</div>
+{% endblock %}
