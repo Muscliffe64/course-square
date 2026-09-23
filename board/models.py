@@ -5,6 +5,7 @@ from pathlib import Path
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.contrib.auth.signals import user_logged_in
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
@@ -308,6 +309,44 @@ class VisitLog(models.Model):
         verbose_name = "访问记录"
         verbose_name_plural = "访问记录"
     def __str__(self): return f"{self.ip_address or '-'} {self.path} @ {self.created_at:%F %T}"
+
+
+class LoginEvent(models.Model):
+    """每次成功登录记一条，用来数登录次数（Django 自带的 last_login 只存最近一次）。"""
+    user = models.ForeignKey(User, verbose_name="用户", on_delete=models.CASCADE, related_name="login_events")
+    ip_address = models.GenericIPAddressField("IP 地址", null=True, blank=True)
+    created_at = models.DateTimeField("时间", default=timezone.now, db_index=True)
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "登录记录"
+        verbose_name_plural = "登录记录"
+    def __str__(self): return f"{self.user} @ {self.created_at:%F %T}"
+
+
+@receiver(user_logged_in)
+def record_login(sender, request, user, **kwargs):
+    from .auth_views import client_ip
+    try:
+        LoginEvent.objects.create(user=user, ip_address=client_ip(request) if request is not None else None)
+    except Exception:
+        pass  # 记录失败不影响登录
+
+
+class ResourceAccess(models.Model):
+    """学生下载或在线阅读课程资料，一次一条。资料删了记录还在，只是不再归到哪一讲。"""
+    class Kind(models.TextChoices):
+        DOWNLOAD = "download", "下载"
+        READ = "read", "在线阅读"
+    user = models.ForeignKey(User, verbose_name="用户", on_delete=models.CASCADE, related_name="resource_accesses")
+    resource = models.ForeignKey(Resource, verbose_name="资料", on_delete=models.SET_NULL, null=True, blank=True, related_name="accesses")
+    kind = models.CharField("方式", max_length=10, choices=Kind.choices, default=Kind.DOWNLOAD)
+    created_at = models.DateTimeField("时间", default=timezone.now, db_index=True)
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "resource"])]
+        verbose_name = "资料下载记录"
+        verbose_name_plural = "资料下载记录"
+    def __str__(self): return f"{self.user} · {self.resource or '已删除的资料'} · {self.get_kind_display()}"
 
 
 class Ticket(models.Model):

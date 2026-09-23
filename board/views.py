@@ -17,7 +17,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from .forms import CommentForm, PlanForm, PostForm, QuickPostForm, ReportForm
 from .feed import course_feed_page
 from .media import video_embed_url
-from .models import Announcement, Comment, Lecture, Like, Notification, Post, PostImage, Resource, Ticket
+from .models import Announcement, Comment, Lecture, Like, Notification, Post, PostImage, Resource, ResourceAccess, Ticket
 from .pending import derive_title, pending_comments, pending_posts
 
 IMAGE_CONTENT_TYPES = {
@@ -246,6 +246,8 @@ def resources(request): return render(request, "board/resources.html", common_co
 @login_required
 def resource_download(request, pk):
     resource = get_object_or_404(Resource, pk=pk)
+    if request.method == "GET":
+        ResourceAccess.objects.create(user=request.user, resource=resource, kind=ResourceAccess.Kind.DOWNLOAD)
     response = FileResponse(resource.file.open("rb"), as_attachment=True, filename=resource.original_filename or "resource")
     response["X-Content-Type-Options"] = "nosniff"; return response
 
@@ -261,6 +263,8 @@ def resource_read(request, pk):
         return redirect("board:resources")
     text = resource.file.open("rb").read().decode("utf-8", errors="replace")
     html = MarkdownIt("gfm-like", {"html": False, "linkify": False, "breaks": True}).render(text)
+    if request.method == "GET":
+        ResourceAccess.objects.create(user=request.user, resource=resource, kind=ResourceAccess.Kind.READ)
     return render(request, "board/resource_read.html", common_context() | {"resource": resource, "content_html": html})
 
 @login_required

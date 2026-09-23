@@ -1,10 +1,12 @@
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.template.response import TemplateResponse
 from django.urls import path
 from .forms import PostAdminForm
-from .models import Announcement, Comment, Lecture, Like, LoginAttempt, Notification, Post, PostImage, Report, Resource, TeacherDigest, Ticket, VisitLog
+from .models import Announcement, Comment, Lecture, Like, LoginAttempt, LoginEvent, Notification, Post, PostImage, Report, Resource, ResourceAccess, TeacherDigest, Ticket, VisitLog
+from .participation import SORTS, participation, participation_xlsx
 from .tickets import tickets_csv
 
 @admin.register(Post)
@@ -144,6 +146,62 @@ class NotificationAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+class ReadOnlyAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LoginEvent)
+class LoginEventAdmin(ReadOnlyAdmin):
+    list_display = ("created_at", "user", "student_name", "ip_address")
+    list_select_related = ("user",)
+    search_fields = ("user__username", "user__first_name", "ip_address")
+    date_hierarchy = "created_at"
+
+    @admin.display(description="姓名", ordering="user__first_name")
+    def student_name(self, obj):
+        return obj.user.first_name
+
+
+@admin.register(ResourceAccess)
+class ResourceAccessAdmin(ReadOnlyAdmin):
+    list_display = ("created_at", "user", "student_name", "resource", "kind")
+    list_select_related = ("user", "resource")
+    list_filter = ("kind", "resource__lecture", "resource")
+    search_fields = ("user__username", "user__first_name", "resource__title")
+    date_hierarchy = "created_at"
+
+    @admin.display(description="姓名", ordering="user__first_name")
+    def student_name(self, obj):
+        return obj.user.first_name
+
+    def get_urls(self):
+        return [path("participation/", self.admin_site.admin_view(self.participation_view), name="board_participation")] + super().get_urls()
+
+    def changelist_view(self, request, extra_context=None):
+        return super().changelist_view(request, extra_context=(extra_context or {}) | {"participation_link": True})
+
+    def participation_view(self, request):
+        if not request.user.is_staff:  # admin_view 已经挡过一次，这里再明确一遍：只有老师能看
+            raise PermissionDenied
+        sort = request.GET.get("sort", "id")
+        sort = sort if sort in SORTS else "id"
+        only_never = request.GET.get("never") == "1"
+        rows, lectures, held, summary = participation(sort, only_never)
+        if request.GET.get("export") == "xlsx":
+            return participation_xlsx(rows, lectures, held)
+        return TemplateResponse(request, "admin/board/participation.html", {
+            **self.admin_site.each_context(request),
+            "title": "学生参与度", "opts": self.model._meta,
+            "rows": rows, "lectures": lectures, "held_ids": {lecture.pk for lecture in held}, "held_count": len(held),
+            "summary": summary, "sort": sort, "sorts": [(key, label) for key, (label, _) in SORTS.items()],
+            "only_never": only_never,
+        })
+
+
 admin.site.site_header = "人工智能导论·课程管理"
 admin.site.site_title = "课程管理"
 admin.site.index_title = "内容与账号管理"

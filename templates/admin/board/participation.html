@@ -1,0 +1,66 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+.pt-summary { display:flex; flex-wrap:wrap; gap:10px 28px; margin:8px 0 14px; font-size:14px; }
+.pt-summary strong { font-size:18px; }
+.pt-note { color:var(--body-quiet-color,#666); font-size:12px; line-height:1.7; margin:0 0 14px; max-width:880px; }
+.pt-tools { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin:0 0 12px; font-size:13px; }
+.pt-tools a.on { font-weight:700; text-decoration:underline; }
+.pt-wrap { overflow-x:auto; }
+.pt-table { border-collapse:collapse; font-size:13px; min-width:720px; }
+.pt-table th, .pt-table td { padding:6px 10px; border-bottom:1px solid var(--border-color,#ddd); text-align:left; white-space:nowrap; }
+.pt-table th { background:var(--darkened-bg,#f6f6f6); position:sticky; top:0; }
+.pt-table td.num, .pt-table th.num { text-align:right; font-variant-numeric:tabular-nums; }
+.pt-table td.lec { text-align:center; }
+.pt-table th.future { color:var(--body-quiet-color,#888); font-weight:400; }
+.pt-never td { background:var(--message-warning-bg,#fff7e0); }
+.pt-zero { color:var(--body-quiet-color,#aaa); }
+</style>
+
+<div class="pt-summary">
+  <span>学生 <strong>{{ summary.students }}</strong></span>
+  <span>登录过 <strong>{{ summary.logged_in }}</strong></span>
+  <span>从未登录 <strong>{{ summary.never }}</strong></span>
+  {% if held_count %}<span>已开讲且有资料 <strong>{{ held_count }}</strong> 讲，讲讲都下过 <strong>{{ summary.full_coverage }}</strong> 人</span>{% endif %}
+</div>
+<p class="pt-note">
+  「从未登录」看的是账号有没有登录过的记录，开学以来都准。
+  「登录次数」{% if summary.login_since %}从 {{ summary.login_since|date:"Y-m-d H:i" }} 起统计{% else %}从这次上线起统计，目前还没有记录{% endif %}，更早的登录没有留下次数；登录状态能保持两周，所以次数偏低很正常，不要单独拿来比。
+  「来过几天」按访问记录里有几个不同日期算。
+  「下载次数」含在线阅读，{% if summary.download_since %}最早一条是 {{ summary.download_since|date:"Y-m-d H:i" }}{% else %}暂无记录{% endif %}；同一份资料下十次算十次，所以旁边另列「下载过的资料数」。
+  「覆盖讲数」只算已经开讲、而且挂了资料的讲次；灰色表头是还没开讲的。{% if summary.unassigned_resources %}<strong>有 {{ summary.unassigned_resources }} 份资料没挂到讲次上</strong>，它们只算进下载次数，不算进覆盖讲数，去「课程资料」里给它们选「所属讲次」。{% endif %}
+</p>
+
+<div class="pt-tools">
+  <span>排序：{% for key, label in sorts %}<a href="?sort={{ key }}{% if only_never %}&never=1{% endif %}" class="{% if key == sort %}on{% endif %}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+  <span>{% if only_never %}<a href="?sort={{ sort }}">显示全部</a>{% else %}<a href="?sort={{ sort }}&never=1">只看从未登录</a>{% endif %}</span>
+  <span><a href="?sort={{ sort }}{% if only_never %}&never=1{% endif %}&export=xlsx">导出 Excel</a></span>
+</div>
+
+<div class="pt-wrap">
+<table class="pt-table">
+  <thead><tr>
+    <th>学号</th><th>姓名</th><th>最近登录</th>
+    <th class="num">登录次数</th><th class="num">来过几天</th><th class="num">下载次数</th><th class="num">下载过的资料数</th>
+    <th class="num">覆盖讲数</th>
+    {% for lecture in lectures %}<th class="{% if lecture.pk not in held_ids %}future{% endif %}" title="{{ lecture.title }}">{{ lecture.number }}</th>{% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr class="{% if row.never_logged_in %}pt-never{% endif %}">
+      <td>{{ row.username }}</td><td>{{ row.name }}</td>
+      <td>{% if row.last_login %}{{ row.last_login|date:"m-d H:i" }}{% else %}从未登录{% endif %}</td>
+      <td class="num {% if not row.logins %}pt-zero{% endif %}">{{ row.logins }}</td>
+      <td class="num {% if not row.active_days %}pt-zero{% endif %}">{{ row.active_days }}</td>
+      <td class="num {% if not row.downloads %}pt-zero{% endif %}">{{ row.downloads }}</td>
+      <td class="num {% if not row.distinct_resources %}pt-zero{% endif %}">{{ row.distinct_resources }}</td>
+      <td class="num">{{ row.covered_count }}/{{ held_count }}</td>
+      {% for lecture in lectures %}<td class="lec">{% if lecture.pk in row.covered %}✓{% else %}<span class="pt-zero">·</span>{% endif %}</td>{% endfor %}
+    </tr>
+  {% empty %}
+    <tr><td colspan="{{ lectures|length|add:8 }}">没有符合条件的学生。</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "admin/index.html" %}
+{% block content %}
+{% if request.user.is_staff %}
+<div class="module" style="margin-bottom:20px;padding:12px 16px">
+  <strong>学生参与度</strong>：谁登录过、登录几次、来过几天、下载了哪几讲的资料。
+  <a href="{% url 'admin:board_participation' %}">打开 →</a>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
