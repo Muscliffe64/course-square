@@ -8,6 +8,8 @@
   <meta name="color-scheme" content="light">
   <title>{% block title %}课程广场{% endblock %} · 人工智能导论</title>
   <link rel="icon" href="{% static 'board/favicon.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'board/apple-touch-icon.png' %}">
+  <link rel="preload" href="{% static 'board/fonts/cs-display.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'board/app.css' %}">
   <script src="{% static 'board/app.js' %}" defer></script>
 </head>
@@ -30,8 +32,7 @@
   {% if user.is_authenticated %}
   <div class="app-shell">
     <aside class="sidebar" aria-label="课程导航">
-      <a class="brand" href="{% url 'board:home' %}"><img src="{% static 'board/favicon.svg' %}" width="39" height="39" alt=""><span>课程广场<small>人工智能导论</small></span></a>
-      <div class="semester-label">2026 · 课程空间</div>
+      <a class="brand" href="{% url 'board:home' %}"><img src="{% static 'board/logo.svg' %}" width="34" height="34" alt=""><span>课程广场<small>人工智能导论 · 2026 秋</small></span></a>
       <nav class="main-nav">
         <a href="{% url 'board:home' %}" class="{% if request.resolver_match.url_name == 'home' and not kind %}active{% endif %}"><svg><use href="#i-grid"/></svg><span>全部动态</span></a>
         <a href="{% url 'board:home' %}?kind=topic" class="{% if kind == 'topic' %}active{% endif %}"><svg><use href="#i-chat"/></svg><span>下节课想听什么</span></a>

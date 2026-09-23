@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}待回应{% endblock %}{% block breadcrumb %}待回应{% endblock %}
 {% block content %}
-<div class="page-heading"><div><h1>待回应<span class="heading-dot">.</span></h1><p>学生发了、你还没接话的内容，最早的排在最前面。在帖子下留言、排进某一讲，或者点「无需回复」，它就会从这里消失。</p></div></div>
+<div class="page-heading"><div><h1>待回应</h1><p>学生发了、你还没接话的内容，最早的排在最前面。在帖子下留言、排进某一讲，或者点「无需回复」，它就会从这里消失。</p></div></div>
 <div class="pending-summary">
   <a href="#pending-posts"><strong>{{ pending_post_list|length }}</strong><span>条帖子</span></a>
   <a href="#pending-comments"><strong>{{ pending_comment_list|length }}</strong><span>条留言</span></a>

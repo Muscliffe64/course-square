@@ -3,13 +3,13 @@
 {% block guest_content %}
 <div class="login-layout">
   <section class="login-intro">
-    <a class="brand" href="{% url 'login' %}"><img src="{% static 'board/favicon.svg' %}" width="42" height="42" alt=""><span>课程广场<small>人工智能导论 · 2026</small></span></a>
-    <div class="intro-body"><span class="eyebrow">OUR CLASS, OUR IDEAS</span><h1>好奇心，<br>在这里相遇<span>。</span></h1><p>带来一个问题，分享一次尝试。<br>一起把这门课变成我们想要的样子。</p>
+    <a class="brand" href="{% url 'login' %}"><img src="{% static 'board/logo.svg' %}" width="40" height="40" alt=""><span>课程广场<small>人工智能导论 · 2026 秋</small></span></a>
+    <div class="intro-body"><h1>好奇心，<br>在这里相遇<span>。</span></h1><p>带来一个问题，分享一次尝试。<br>一起把这门课变成我们想要的样子。</p>
     <div class="intro-topics"><span><svg class="icon"><use href="#i-chat"/></svg> 下节课想听什么</span><span><svg class="icon"><use href="#i-spark"/></svg> 作品与分享</span><span><svg class="icon"><use href="#i-file"/></svg> 课程资料</span></div></div>
     <div class="intro-footer"><span class="tiny-dot"></span> 整周开放 · 仅本课程成员可见</div>
   </section>
   <section class="login-panel">
-    <div class="login-card"><span class="section-number">WELCOME BACK</span><h2>欢迎回到课堂</h2><p class="muted">使用你的课程账号登录。</p>
+    <div class="login-card"><h2>欢迎回到课堂</h2><p class="muted">使用你的课程账号登录。</p>
       <form method="post" class="form-stack" novalidate>{% csrf_token %}
         {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
         <div class="field"><label for="id_username">学号 / 管理员账号</label><input id="id_username" name="username" type="text" autocomplete="username" autofocus required maxlength="150" value="{{ form.username.value|default:'' }}" placeholder="请输入学号">{{ form.username.errors }}</div>

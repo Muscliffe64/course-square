@@ -140,3 +140,24 @@
 .plan-form{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
 .plan-form select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper);font-size:13px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}.post-card:hover,.resource-card:hover{transform:none}.comment:target,.post-card:target,.pending-item:target{box-shadow:0 0 0 3px var(--orange)}}
+
+/* ===== 品牌层（2026-09-24）：宋体标题 + 四格 logo =====
+   标题字是子集字体，只含固定文案里的字；改文案后跑 tools/build_display_font.py。
+   用户写的内容（帖子标题等）不要用 var(--display)，缺字会退回系统字体，混排很难看。 */
+@font-face{font-family:'CS Display';src:url(fonts/cs-display.woff2) format('woff2');font-weight:900;font-style:normal;font-display:swap}
+:root{--display:'CS Display','Noto Serif CJK SC','Source Han Serif SC','Songti SC',serif;--sans:-apple-system,BlinkMacSystemFont,'PingFang SC','HarmonyOS Sans SC','Microsoft YaHei',sans-serif}
+.brand{gap:12px}
+.brand>span{font-family:var(--display);font-weight:900;font-size:23px;letter-spacing:.08em;color:var(--ink)}
+.brand small{font-family:var(--sans);font-weight:400;font-size:12px;letter-spacing:.1em;margin-top:6px}
+.page-heading .eyebrow{font-size:13px;font-weight:500;letter-spacing:.06em;margin-bottom:10px}
+.page-heading h1{font-family:var(--display);font-weight:900;font-size:42px;line-height:1.2;letter-spacing:.04em;margin-bottom:10px}
+.narrow-content .page-heading h1{font-size:34px}
+.empty-state h1,.empty-state h2,.standalone-message h1{font-family:var(--display);font-weight:900;letter-spacing:.04em}
+.hotlist-head h2{font-family:var(--display);font-weight:900;font-size:18px;letter-spacing:.06em}
+.hotlist-rank{font-family:var(--display);font-weight:900;font-style:normal;font-size:17px}
+.intro-body h1{font-family:var(--display);font-weight:900;letter-spacing:.02em;line-height:1.35}
+.login-card h2{font-family:var(--display);font-weight:900;letter-spacing:.04em;margin-top:0}
+.composer{background:var(--paper);border-color:var(--line)}
+@media(min-width:701px){.sidebar .main-nav{margin-top:46px}}
+@media(max-width:980px){.page-heading h1{font-size:34px}.narrow-content .page-heading h1{font-size:30px}}
+@media(max-width:700px){.sidebar>.brand>span{font-size:19px;letter-spacing:.06em}.page-heading h1{font-size:28px;margin-bottom:8px}.narrow-content .page-heading h1{font-size:26px}.intro-body h1{font-size:30px}.login-intro .brand>span{font-size:20px}}
