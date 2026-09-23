@@ -110,7 +110,7 @@ class Post(models.Model):
     status = models.CharField("状态", max_length=16, choices=Status.choices, default=Status.OPEN)
     pinned = models.BooleanField("置顶", default=False)
     planned_lecture = models.ForeignKey(Lecture, verbose_name="排进讲次", on_delete=models.SET_NULL, null=True, blank=True, related_name="planned_posts")
-    teacher_dismissed = models.BooleanField("无需老师回复", default=False, help_text="勾选后不再出现在「待回应」里")
+    teacher_dismissed = models.BooleanField("无需老师回复", default=False, db_default=False, help_text="勾选后不再出现在「待回应」里")
     created_at = models.DateTimeField("发布时间", auto_now_add=True)
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")
@@ -191,7 +191,7 @@ class Comment(models.Model):
     author = models.ForeignKey(User, verbose_name="作者", on_delete=models.CASCADE, related_name="comments")
     body = models.TextField("内容", max_length=1000)
     anonymous = models.BooleanField("匿名", default=False)
-    teacher_dismissed = models.BooleanField("无需老师回复", default=False)
+    teacher_dismissed = models.BooleanField("无需老师回复", default=False, db_default=False)
     created_at = models.DateTimeField("发布时间", auto_now_add=True)
     def __str__(self): return f"{self.post}: {self.body[:30]}"
     class Meta:

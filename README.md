@@ -2,6 +2,8 @@
 
 一个班级共用的课程社区。三个栏目：下节课想听什么、作品与分享、课程资料。支持匿名/实名发帖与评论、点赞、教师公告、作品图片与链接、资料下载、管理后台。
 
+首页有一行发帖框（勾「只给老师看」即为实名课后小票）和「下节课想听什么」投票（赞同即投票，票数最高的一条下节课一定讲）。教师有「待回应」页、排进第 N 讲、站外推送提醒。详见 `docs/2026-09-23-lectures-pending-quickpost.md`。
+
 ## 本地启动
 
 ```bash
@@ -32,7 +34,13 @@ XLSX 自动查找「学号」「姓名」列；CSV 使用 `student_id,name` 标�
 
 进入 `/admin/`，管理帖子（置顶、准备讲、已回应）、评论、公告、资料、举报及学生账号。管理员使用独立强密码。只上传可分享的最终报告与讲稿，不上传名单或含有未处理个人信息的问卷原始答卷。
 
-教师登录课程广场后，侧边栏“消息通知”会显示学生的新留言；点击可直接跳到相应讨论并回复。学生只会收到与自己有关的消息：帖子被点赞或留言被回复。
+教师登录课程广场后，侧边栏“消息通知”会显示学生的新留言；点击可直接跳到相应讨论并回复。学生只会收到与自己有关的消息：帖子被点赞、留言被回复、帖子被排进某一讲。
+
+**每学期开始先在后台「讲次」里录入各讲的日期**：投票截止时间、「排进第 N 讲」、课后小票的归属都依赖它。
+
+侧边栏“待回应”列出学生发了、教师还没接话的帖子和留言，最早的在前。回复、排进讲次或点“无需回复”后消失。配置 `TEACHER_NOTIFY_WEBHOOK`（Server 酱 / 企业微信 / 飞书 / 钉钉）后，`course-square-notify.timer` 每 30 分钟检查一次，有新内容才推送，推送里不含学生姓名。
+
+课后小票在后台「课后小票」查看（含真名）；在「讲次」列表勾选讲次后可导出 CSV，姓名替换为稳定代号，供平台外摘要使用。
 
 ## 阿里云部署
 
@@ -60,6 +68,7 @@ sudo python3 /opt/course-square/current/deploy/backup.py
 
 ```bash
 .venv/bin/python manage.py generate_thumbnails   # 为历史图片补缩略图，可重复执行
+.venv/bin/python manage.py collectstatic --noinput   # 有一项测试在 DEBUG=False 下取静态文件，需要先收集
 .venv/bin/python manage.py test
 .venv/bin/python manage.py check
 .venv/bin/python manage.py makemigrations --check --dry-run
