@@ -48,23 +48,25 @@ def home(request):
         context["quick_draft"] = request.session.pop("quick_draft", None)
         context["quick_kind"] = kind or Post.Kind.TOPIC
         context["ticket_lecture"] = Lecture.latest_held()
-    # 排行只放在第一页、不筛本周的视图里，免得和筛选结果混在一起。
-    if kind in {"", Post.Kind.TOPIC} and week == "all" and page.number == 1:
-        context.update(topic_ranking(request.user))
+    # 右栏热榜在首页各标签都显示；窄屏的内联版本由模板决定只在哪些视图出现。
+    context.update(topic_ranking(request.user))
     return render(request, "board/home.html", context)
 
-RANKING_SIZE = 5
+RANKING_SIZE = 8
+NEW_CANDIDATE_AGE = timedelta(hours=24)
 
 def topic_ranking(user):
     """「下节课想听什么」排行：还开放、没排进讲次的提问，按赞同数排序。赞同 = 投票。"""
     upcoming = Lecture.upcoming()
     candidates = list(Post.objects.filter(kind=Post.Kind.TOPIC, status=Post.Status.OPEN, planned_lecture__isnull=True)
                       .annotate(like_count=Count("likes", distinct=True))
-                      .order_by("-like_count", "created_at")[:RANKING_SIZE])
+                      .order_by("-like_count", "-created_at")[:RANKING_SIZE])
     liked = set(Like.objects.filter(user=user, post__in=candidates).values_list("post_id", flat=True))
     top = candidates[0].like_count if candidates else 0
+    fresh_since = timezone.now() - NEW_CANDIDATE_AGE
     for post in candidates:
         post.voted = post.pk in liked
+        post.is_new = post.created_at >= fresh_since
         post.percent = round(post.like_count * 100 / top) if top else 0
     leaders = [post for post in candidates if top and post.like_count == top]
     return {"show_ranking": True, "ranking": candidates, "ranking_upcoming": upcoming, "ranking_tie": len(leaders) > 1,
@@ -79,10 +81,16 @@ def quick_post(request):
     tab = request.POST.get("tab") if request.POST.get("tab") in Post.Kind.values else ""
     back = reverse("board:home") + (f"?kind={tab}" if tab else "")
     if not form.is_valid():
-        request.session["quick_draft"] = {"body": request.POST.get("body", "")[:1000], "anonymous": bool(request.POST.get("anonymous")), "to_teacher": bool(request.POST.get("to_teacher"))}
+        mode = request.POST.get("mode") if request.POST.get("mode") in {"topic", "showcase", "teacher"} else ""
+        request.session["quick_draft"] = {"body": request.POST.get("body", "")[:1000], "anonymous": bool(request.POST.get("anonymous")), "mode": mode}
         messages.error(request, " ".join(error for errors in form.errors.values() for error in errors))
         return redirect(back)
     data = form.cleaned_data
+    mode = request.POST.get("mode", "")
+    if mode == "teacher":
+        data["to_teacher"] = True
+    elif mode in Post.Kind.values:
+        data["kind"] = mode
     recent = timezone.now() - QUICK_DUPLICATE_WINDOW
     if data["to_teacher"] and not request.user.is_staff:
         lecture = Lecture.latest_held()
@@ -94,7 +102,7 @@ def quick_post(request):
     post = Post.objects.filter(author=request.user, body=data["body"], kind=data["kind"], anonymous=data["anonymous"], created_at__gte=recent).first()
     if post is None:
         post = Post.objects.create(author=request.user, kind=data["kind"], title=derive_title(data["body"]), body=data["body"], anonymous=data["anonymous"])
-    messages.success(request, "已发布。")
+    messages.success(request, "已发布，它已经是「想听热榜」的候选，有人点 ♥ 就会往上排。" if post.kind == Post.Kind.TOPIC else "已发布。")
     return redirect(back + f"#post-{post.pk}")
 
 @login_required

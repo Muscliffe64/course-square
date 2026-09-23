@@ -38,32 +38,23 @@ const autosize = (area) => {
 document.addEventListener('input', (event) => {
   if (event.target.matches('[data-autosize]')) autosize(event.target);
 });
+// 发帖框三个去处：想听的主题 / 作品与分享 / 问老师。切换时换标题、示例文字和可用选项。
 const syncComposer = (form) => {
-  const toTeacher = form.querySelector('[data-to-teacher]');
-  const privateMode = Boolean(toTeacher && toTeacher.checked);
-  form.classList.toggle('is-private', privateMode);
-  form.querySelectorAll('[data-public-only] input').forEach((input) => { input.disabled = privateMode; });
-  const hint = form.querySelector('[data-teacher-hint]');
-  if (hint) hint.hidden = !privateMode;
-  const submit = form.querySelector('[data-composer-submit]');
-  if (submit) submit.textContent = privateMode ? '交给老师' : '发布';
-};
-const syncKind = (form) => {
-  const checked = form.querySelector('input[name=kind]:checked');
-  if (!checked) return;
-  const kind = checked.value === 'showcase' ? 'showcase' : 'topic';
-  form.querySelectorAll('[data-lead-topic]').forEach((el) => { el.hidden = kind !== 'topic'; });
-  form.querySelectorAll('[data-lead-showcase]').forEach((el) => { el.hidden = kind !== 'showcase'; });
+  const checked = form.querySelector('input[name=mode]:checked');
+  const mode = checked ? checked.value : 'topic';
+  form.classList.toggle('is-private', mode === 'teacher');
+  form.querySelectorAll('[data-mode]').forEach((el) => { el.hidden = !el.dataset.mode.split(' ').includes(mode); });
   const area = form.querySelector('textarea');
-  if (area && area.dataset[`placeholder${kind === 'topic' ? 'Topic' : 'Showcase'}`]) area.placeholder = area.dataset[`placeholder${kind === 'topic' ? 'Topic' : 'Showcase'}`];
+  const key = `placeholder${mode.charAt(0).toUpperCase()}${mode.slice(1)}`;
+  if (area && area.dataset[key]) area.placeholder = area.dataset[key];
   const full = form.querySelector('.composer-full');
-  if (full) full.href = full.href.replace(/kind=\w+/, `kind=${kind}`);
+  if (full) full.href = full.href.replace(/kind=\w+/, `kind=${mode === 'showcase' ? 'showcase' : 'topic'}`);
+  const submit = form.querySelector('[data-composer-submit]');
+  if (submit && !submit.disabled) submit.textContent = mode === 'teacher' ? '交给老师' : '发布';
 };
 document.addEventListener('change', (event) => {
   const form = event.target.closest('[data-composer]');
-  if (!form) return;
-  if (event.target.matches('[data-to-teacher]')) syncComposer(form);
-  if (event.target.matches('input[name=kind]')) syncKind(form);
+  if (form && event.target.matches('input[name=mode]')) syncComposer(form);
 });
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && event.target.matches('[data-composer] textarea')) {

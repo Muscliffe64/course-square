@@ -122,10 +122,18 @@ class QuickPostTests(Base):
     def test_composer_on_home_but_not_on_resource_tab(self):
         self.client.force_login(self.student)
         self.assertContains(self.client.get("/"), 'data-composer')
-        self.assertContains(self.client.get("/"), "只给老师看")
+        self.assertContains(self.client.get("/"), 'value="teacher"')
         self.assertNotContains(self.client.get("/", {"kind": "resource"}), 'data-composer')
         self.client.force_login(self.teacher)
-        self.assertNotContains(self.client.get("/"), "只给老师看")
+        self.assertNotContains(self.client.get("/"), 'value="teacher"')
+
+    def test_mode_field_picks_destination(self):
+        self.client.force_login(self.student)
+        self.client.post(self.url, {"body": "想听强化学习", "mode": "topic"})
+        self.client.post(self.url, {"body": "做了个小工具", "mode": "showcase", "kind": "topic"})
+        self.client.post(self.url, {"body": "作业没懂", "mode": "teacher", "anonymous": "on"})
+        self.assertEqual(sorted(Post.objects.values_list("kind", flat=True)), ["showcase", "topic"])
+        self.assertEqual(Ticket.objects.get().body, "作业没懂")
 
 
 class PlanTests(Base):
@@ -194,7 +202,7 @@ class RankingTests(Base):
         self.assertTrue(ranking[0].voted)
         self.assertFalse(ranking[1].voted)
         self.assertEqual((ranking[0].percent, ranking[1].percent), (100, 0))
-        self.assertContains(response, "第一名第 3 讲一定讲。")
+        self.assertContains(response, "第一名第 3 讲一定讲")
         self.assertEqual(response.context["ranking_voters"], 2)
 
     def test_vote_via_like_returns_to_ranking(self):
@@ -203,16 +211,26 @@ class RankingTests(Base):
         self.assertEqual(response["Location"], "/#ranking")
         self.assertTrue(Like.objects.filter(post=self.a, user=self.student).exists())
 
-    def test_only_on_unfiltered_first_page(self):
+    def test_side_list_everywhere_inline_copy_only_on_first_page(self):
         self.client.force_login(self.student)
-        self.assertIn("ranking", self.client.get("/", {"kind": "topic"}).context)
-        self.assertNotIn("ranking", self.client.get("/", {"kind": "showcase"}).context)
-        self.assertNotIn("ranking", self.client.get("/", {"week": "current"}).context)
+        for params in ({}, {"kind": "topic"}, {"kind": "showcase"}, {"kind": "resource"}, {"week": "current"}):
+            self.assertContains(self.client.get("/", params), 'hotlist-side')
+        self.assertContains(self.client.get("/"), 'hotlist-inline')
+        self.assertContains(self.client.get("/", {"kind": "topic"}), 'hotlist-inline')
+        self.assertNotContains(self.client.get("/", {"kind": "showcase"}), 'hotlist-inline')
+        self.assertNotContains(self.client.get("/", {"week": "current"}), 'hotlist-inline')
+
+    def test_new_zero_vote_candidate_is_visible_and_marked(self):
+        fresh = Post.objects.create(author=self.student, title="刚提的", body="b", kind="topic")
+        self.client.force_login(self.other)
+        ranking = self.client.get("/").context["ranking"]
+        self.assertIn(fresh, ranking)
+        self.assertTrue(next(p for p in ranking if p.pk == fresh.pk).is_new)
 
     def test_without_lectures_still_promises_next_class(self):
         Lecture.objects.all().delete()
         self.client.force_login(self.student)
-        self.assertContains(self.client.get("/"), "第一名下节课一定讲。")
+        self.assertContains(self.client.get("/"), "第一名下节课一定讲")
 
     def test_staff_one_click_plan_from_ranking(self):
         self.client.force_login(self.teacher)

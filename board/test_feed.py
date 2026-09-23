@@ -45,8 +45,9 @@ class CourseFeedTests(TestCase):
             with self.subTest(kind=kind):
                 response = self.client.get('/', {'kind': kind})
                 self.assertContains(response, expected)
-                for other in set(titles.values()) - {expected}:
-                    self.assertNotContains(response, other)
+                # 只看信息流本身；右栏「想听热榜」在各标签都会显示提问标题。
+                feed_titles = {(e.get('post') or e.get('resource')).title for e in response.context['page_obj']}
+                self.assertEqual(feed_titles, {expected})
                 self.assertEqual(response.context['page_obj'].paginator.count, 1)
 
     def test_mixed_feed_order_pagination_and_week_filter(self):

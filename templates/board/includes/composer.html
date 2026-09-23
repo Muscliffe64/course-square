@@ -1,20 +1,29 @@
-<form class="composer" method="post" action="{% url 'board:quick_post' %}" data-composer>
+{% with mode=quick_draft.mode|default:quick_kind %}
+<form class="composer{% if mode == 'teacher' %} is-private{% endif %}" method="post" action="{% url 'board:quick_post' %}" data-composer>
   {% csrf_token %}
   <input type="hidden" name="tab" value="{{ kind }}">
-  <label class="composer-lead" for="quick-body"><b data-lead-topic {% if quick_kind == 'showcase' %}hidden{% endif %}>有什么想问、想听的？</b><b data-lead-showcase {% if quick_kind != 'showcase' %}hidden{% endif %}>最近做了点什么？</b><span>一句话就行，第一句会自动当标题。</span></label>
+  <div class="composer-modes" role="radiogroup" aria-label="发到哪里">
+    <label><input type="radio" name="mode" value="topic" {% if mode != 'showcase' and mode != 'teacher' %}checked{% endif %}><span>想听的主题</span></label>
+    <label><input type="radio" name="mode" value="showcase" {% if mode == 'showcase' %}checked{% endif %}><span>作品与分享</span></label>
+    {% if not user.is_staff %}<label><input type="radio" name="mode" value="teacher" {% if mode == 'teacher' %}checked{% endif %}><span>问老师</span></label>{% endif %}
+  </div>
+  <label class="composer-lead" for="quick-body">
+    <span data-mode="topic" {% if mode == 'showcase' or mode == 'teacher' %}hidden{% endif %}><b>下节课想听什么？</b>发出后进入「想听热榜」，大家点 ♥ 决定讲什么。</span>
+    <span data-mode="showcase" {% if mode != 'showcase' %}hidden{% endif %}><b>最近做了点什么？</b>一句话也行，第一句会自动当标题。</span>
+    <span data-mode="teacher" {% if mode != 'teacher' %}hidden{% endif %}><b>想单独问老师？</b>实名，只有老师能看到，不会出现在广场上；老师会在课上统一回应{% if ticket_lecture %}（算作{{ ticket_lecture.label }}的课后小票）{% endif %}。</span>
+  </label>
   <div class="composer-row">
     <span class="avatar" aria-hidden="true">{{ user.first_name|default:'我'|slice:':1' }}</span>
-    <textarea id="quick-body" name="body" rows="1" maxlength="1000" required data-autosize data-placeholder-topic="比如：扩散模型到底是怎么从一堆噪声里画出图的？" data-placeholder-showcase="比如：用 Whisper 给采访录音自动出了字幕，流程是……" placeholder="{% if quick_kind == 'showcase' %}比如：用 Whisper 给采访录音自动出了字幕，流程是……{% else %}比如：扩散模型到底是怎么从一堆噪声里画出图的？{% endif %}">{{ quick_draft.body|default:'' }}</textarea>
-    <button class="button primary" type="submit" data-composer-submit>发布</button>
+    <textarea id="quick-body" name="body" rows="1" maxlength="1000" required data-autosize
+      data-placeholder-topic="比如：扩散模型到底是怎么从一堆噪声里画出图的？"
+      data-placeholder-showcase="比如：用 Whisper 给采访录音自动出了字幕，流程是……"
+      data-placeholder-teacher="比如：今天的反向传播我只听懂了一半，卡在求导那一步"
+      placeholder="{% if mode == 'showcase' %}比如：用 Whisper 给采访录音自动出了字幕，流程是……{% elif mode == 'teacher' %}比如：今天的反向传播我只听懂了一半，卡在求导那一步{% else %}比如：扩散模型到底是怎么从一堆噪声里画出图的？{% endif %}">{{ quick_draft.body|default:'' }}</textarea>
+    <button class="button primary" type="submit" data-composer-submit>{% if mode == 'teacher' %}交给老师{% else %}发布{% endif %}</button>
   </div>
-  <div class="composer-options">
-    <div class="composer-kinds" role="radiogroup" aria-label="发到哪个栏目" data-public-only>
-      <label><input type="radio" name="kind" value="topic" {% if quick_kind != 'showcase' %}checked{% endif %}><span>下节课想听</span></label>
-      <label><input type="radio" name="kind" value="showcase" {% if quick_kind == 'showcase' %}checked{% endif %}><span>作品与分享</span></label>
-    </div>
-    <label class="checkbox-label" data-public-only><input type="checkbox" name="anonymous" {% if quick_draft.anonymous %}checked{% endif %}> 匿名</label>
-    {% if not user.is_staff %}<label class="checkbox-label composer-private"><input type="checkbox" name="to_teacher" data-to-teacher {% if quick_draft.to_teacher %}checked{% endif %}> 只给老师看（实名）</label>{% endif %}
-    <a class="composer-full" href="{% url 'board:post_create' %}?kind={{ quick_kind }}">加图片、链接或长文 →</a>
+  <div class="composer-options" data-mode="topic showcase" {% if mode == 'teacher' %}hidden{% endif %}>
+    <label class="checkbox-label"><input type="checkbox" name="anonymous" {% if quick_draft.anonymous %}checked{% endif %}> 匿名</label>
+    <a class="composer-full" href="{% url 'board:post_create' %}?kind={% if mode == 'showcase' %}showcase{% else %}topic{% endif %}">加图片、链接或长文 →</a>
   </div>
-  {% if not user.is_staff %}<p class="composer-hint" data-teacher-hint {% if not quick_draft.to_teacher %}hidden{% endif %}>这会作为{% if ticket_lecture %}{{ ticket_lecture.label }}的{% endif %}课后小票交给老师：实名、只有老师能看到，不会出现在广场上。老师会在课上统一回应，不单独回复。</p>{% endif %}
 </form>
+{% endwith %}
