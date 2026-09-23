@@ -1,15 +1,17 @@
 <section class="ranking" id="ranking" aria-labelledby="ranking-title">
   <div class="ranking-head">
-    <div><h2 id="ranking-title">下节课想听什么 · 投票</h2>
-    <p>点 ♥ 就是投一票，可以投给多条。{% if ranking_upcoming %}截止到{{ ranking_upcoming.label }}（{{ ranking_upcoming.date|date:'n月j日' }} {{ ranking_upcoming.start_time|time:'H:i' }}）上课前，{% endif %}<strong>票数最高的一条，{% if ranking_upcoming %}{{ ranking_upcoming.label }}{% else %}下节课{% endif %}一定讲。</strong></p></div>
-    <span class="ranking-meta">{{ ranking_voters }} 人投过</span>
+    <h2 id="ranking-title">下节课想听什么</h2>
+    <span class="ranking-deadline">{% if ranking_upcoming %}{{ ranking_upcoming.label }} · {{ ranking_upcoming.date|date:'n月j日' }} {{ ranking_upcoming.start_time|time:'H:i' }} 截止{% else %}下节课前截止{% endif %}</span>
   </div>
+  <p class="ranking-rule">同学们的提问按 ♥ 排序，点 ♥ 就是投一票。<strong>第一名{% if ranking_upcoming %}{{ ranking_upcoming.label }}{% else %}下节课{% endif %}一定讲。</strong></p>
   <ol class="ranking-list">
   {% for post in ranking %}
-    <li class="ranking-item{% if post.voted %} voted{% endif %}{% if forloop.first and post.like_count %} leading{% endif %}" style="--pct:{{ post.percent }}%">
-      <span class="ranking-bar" aria-hidden="true"></span>
+    <li class="ranking-item{% if forloop.first and post.like_count %} leading{% endif %}">
       <span class="ranking-rank" aria-hidden="true">{{ forloop.counter }}</span>
-      <a class="ranking-title" href="{% url 'board:post_detail' post.pk %}">{{ post.title }}</a>
+      <div class="ranking-main">
+        <a class="ranking-title" href="{% url 'board:post_detail' post.pk %}">{{ post.title }}</a>
+        <span class="ranking-track" aria-hidden="true"><span style="width:{{ post.percent }}%"></span></span>
+      </div>
       {% if user.is_staff and ranking_upcoming %}<form method="post" action="{% url 'board:post_plan' post.pk %}">{% csrf_token %}<input type="hidden" name="lecture" value="{{ ranking_upcoming.pk }}"><input type="hidden" name="next" value="{{ request.get_full_path }}#ranking"><button class="text-button ranking-plan" type="submit">排进{{ ranking_upcoming.label }}</button></form>{% endif %}
       <form method="post" action="{% url 'board:post_like' post.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}#ranking"><button type="submit" class="vote-button" aria-pressed="{% if post.voted %}true{% else %}false{% endif %}" aria-label="{% if post.voted %}撤回投票{% else %}投一票{% endif %}：{{ post.title }}，现在 {{ post.like_count }} 票"><svg class="icon"><use href="#i-heart"/></svg><span>{{ post.like_count }}</span></button></form>
     </li>
@@ -17,6 +19,5 @@
     <li class="ranking-empty">还没有候选。在上面写一个你想听的，它就是第一个。</li>
   {% endfor %}
   </ol>
-  {% if ranking_tie and user.is_staff %}<p class="ranking-note">目前第一名并列。</p>{% endif %}
-  {% if ranking %}<a class="text-link ranking-more" href="{% url 'board:home' %}?kind=topic&sort=popular">看全部提问 →</a>{% endif %}
+  <div class="ranking-foot">{% if ranking_voters %}<span>{{ ranking_voters }} 人投过</span>{% endif %}{% if ranking_tie and user.is_staff %}<span class="ranking-note">第一名并列</span>{% endif %}{% if ranking %}<a class="text-link" href="{% url 'board:home' %}?kind=topic&sort=popular">看全部提问 →</a>{% endif %}</div>
 </section>

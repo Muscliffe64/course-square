@@ -194,7 +194,7 @@ class RankingTests(Base):
         self.assertTrue(ranking[0].voted)
         self.assertFalse(ranking[1].voted)
         self.assertEqual((ranking[0].percent, ranking[1].percent), (100, 0))
-        self.assertContains(response, "票数最高的一条，第 3 讲一定讲。")
+        self.assertContains(response, "第一名第 3 讲一定讲。")
         self.assertEqual(response.context["ranking_voters"], 2)
 
     def test_vote_via_like_returns_to_ranking(self):
@@ -212,7 +212,7 @@ class RankingTests(Base):
     def test_without_lectures_still_promises_next_class(self):
         Lecture.objects.all().delete()
         self.client.force_login(self.student)
-        self.assertContains(self.client.get("/"), "票数最高的一条，下节课一定讲。")
+        self.assertContains(self.client.get("/"), "第一名下节课一定讲。")
 
     def test_staff_one_click_plan_from_ranking(self):
         self.client.force_login(self.teacher)

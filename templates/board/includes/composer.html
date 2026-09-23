@@ -1,10 +1,10 @@
 <form class="composer" method="post" action="{% url 'board:quick_post' %}" data-composer>
   {% csrf_token %}
   <input type="hidden" name="tab" value="{{ kind }}">
-  <label class="composer-lead" for="quick-body"><b>{% if quick_kind == 'showcase' %}最近做了点什么？{% else %}有什么想问、想听的？{% endif %}</b><span>一句话就行，第一句会自动当标题。</span></label>
+  <label class="composer-lead" for="quick-body"><b data-lead-topic {% if quick_kind == 'showcase' %}hidden{% endif %}>有什么想问、想听的？</b><b data-lead-showcase {% if quick_kind != 'showcase' %}hidden{% endif %}>最近做了点什么？</b><span>一句话就行，第一句会自动当标题。</span></label>
   <div class="composer-row">
     <span class="avatar" aria-hidden="true">{{ user.first_name|default:'我'|slice:':1' }}</span>
-    <textarea id="quick-body" name="body" rows="1" maxlength="1000" required data-autosize placeholder="{% if quick_kind == 'showcase' %}比如：用 Whisper 给采访录音自动出了字幕，流程是……{% else %}比如：扩散模型到底是怎么从一堆噪声里画出图的？{% endif %}">{{ quick_draft.body|default:'' }}</textarea>
+    <textarea id="quick-body" name="body" rows="1" maxlength="1000" required data-autosize data-placeholder-topic="比如：扩散模型到底是怎么从一堆噪声里画出图的？" data-placeholder-showcase="比如：用 Whisper 给采访录音自动出了字幕，流程是……" placeholder="{% if quick_kind == 'showcase' %}比如：用 Whisper 给采访录音自动出了字幕，流程是……{% else %}比如：扩散模型到底是怎么从一堆噪声里画出图的？{% endif %}">{{ quick_draft.body|default:'' }}</textarea>
     <button class="button primary" type="submit" data-composer-submit>发布</button>
   </div>
   <div class="composer-options">

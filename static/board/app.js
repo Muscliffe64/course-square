@@ -26,7 +26,15 @@ document.addEventListener('click', (event) => {
   toggle.querySelector('[data-expand-arrow]').textContent = expanded ? '↓' : '↑';
 });
 // 首页一行发帖：输入框随内容长高；勾「只给老师看」时收起公开选项；提交后禁用按钮防止双击。
-const autosize = (area) => { area.style.height = 'auto'; area.style.height = `${area.scrollHeight}px`; };
+// border-box 下高度要加上边框，否则永远差 2px，Mac 上会冒出滚动条。
+const autosize = (area) => {
+  area.style.height = 'auto';
+  const border = area.offsetHeight - area.clientHeight;
+  const max = parseFloat(getComputedStyle(area).maxHeight) || Infinity;
+  const wanted = area.scrollHeight + border;
+  area.style.height = `${Math.min(wanted, max)}px`;
+  area.style.overflowY = wanted > max ? 'auto' : 'hidden';
+};
 document.addEventListener('input', (event) => {
   if (event.target.matches('[data-autosize]')) autosize(event.target);
 });
@@ -40,9 +48,22 @@ const syncComposer = (form) => {
   const submit = form.querySelector('[data-composer-submit]');
   if (submit) submit.textContent = privateMode ? '交给老师' : '发布';
 };
+const syncKind = (form) => {
+  const checked = form.querySelector('input[name=kind]:checked');
+  if (!checked) return;
+  const kind = checked.value === 'showcase' ? 'showcase' : 'topic';
+  form.querySelectorAll('[data-lead-topic]').forEach((el) => { el.hidden = kind !== 'topic'; });
+  form.querySelectorAll('[data-lead-showcase]').forEach((el) => { el.hidden = kind !== 'showcase'; });
+  const area = form.querySelector('textarea');
+  if (area && area.dataset[`placeholder${kind === 'topic' ? 'Topic' : 'Showcase'}`]) area.placeholder = area.dataset[`placeholder${kind === 'topic' ? 'Topic' : 'Showcase'}`];
+  const full = form.querySelector('.composer-full');
+  if (full) full.href = full.href.replace(/kind=\w+/, `kind=${kind}`);
+};
 document.addEventListener('change', (event) => {
   const form = event.target.closest('[data-composer]');
-  if (form && event.target.matches('[data-to-teacher]')) syncComposer(form);
+  if (!form) return;
+  if (event.target.matches('[data-to-teacher]')) syncComposer(form);
+  if (event.target.matches('input[name=kind]')) syncKind(form);
 });
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && event.target.matches('[data-composer] textarea')) {
