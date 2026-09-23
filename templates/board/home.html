@@ -5,13 +5,7 @@
 <div class="content-columns"><section class="feed-column" aria-label="课程动态">
   {% if kind != 'resource' %}{% include 'board/includes/composer.html' %}{% endif %}
   {% if show_ranking and kind != 'showcase' and kind != 'resource' and page_obj.number == 1 and week == 'all' %}{% include 'board/includes/ranking.html' with variant='inline' %}{% endif %}
-  <nav class="feed-categories" aria-label="动态板块">
-    <a href="?sort={{ sort }}&week={{ week }}" {% if not kind %}aria-current="page"{% endif %}>全部动态</a>
-    <a href="?kind=topic&sort={{ sort }}&week={{ week }}" {% if kind == 'topic' %}aria-current="page"{% endif %}>下节课想听什么</a>
-    <a href="?kind=showcase&sort={{ sort }}&week={{ week }}" {% if kind == 'showcase' %}aria-current="page"{% endif %}>作品与分享</a>
-    <a href="?kind=resource&sort={{ sort }}&week={{ week }}" {% if kind == 'resource' %}aria-current="page"{% endif %}>课程资料</a>
-  </nav>
-  <div class="feed-toolbar"><div class="segmented"><a class="{% if sort != 'popular' %}selected{% endif %}" href="?kind={{ kind|default:'' }}&sort=new&week={{ week|default:'all' }}">最新发布</a><a class="{% if sort == 'popular' %}selected{% endif %}" href="?kind={{ kind|default:'' }}&sort=popular&week={{ week|default:'all' }}">讨论热度</a></div><a class="week-filter {% if week == 'current' %}selected{% endif %}" href="?kind={{ kind|default:'' }}&sort={{ sort|default:'new' }}&week={% if week == 'current' %}all{% else %}current{% endif %}">{% if week == 'current' %}✓ 只看本周{% else %}只看本周{% endif %}</a></div>
+  <div class="feed-toolbar"><nav class="sort-tabs" aria-label="排序"><a class="{% if sort != 'popular' %}selected{% endif %}" {% if sort != 'popular' %}aria-current="true"{% endif %} href="?kind={{ kind|default:'' }}&sort=new&week={{ week|default:'all' }}">最新发布</a><a class="{% if sort == 'popular' %}selected{% endif %}" {% if sort == 'popular' %}aria-current="true"{% endif %} href="?kind={{ kind|default:'' }}&sort=popular&week={{ week|default:'all' }}">讨论热度</a></nav><a class="week-filter {% if week == 'current' %}selected{% endif %}" {% if week == 'current' %}aria-current="true"{% endif %} href="?kind={{ kind|default:'' }}&sort={{ sort|default:'new' }}&week={% if week == 'current' %}all{% else %}current{% endif %}"><span class="week-box" aria-hidden="true"></span>只看本周</a></div>
   <div class="post-list">
     {% for entry in page_obj %}
       {% if entry.resource %}{% include 'board/includes/resource_feed_card.html' with resource=entry.resource %}
