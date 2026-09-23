@@ -260,7 +260,7 @@ class PostGalleryDisplayTests(TestCase):
         self.assertContains(response, "data-post-expand")
         self.assertContains(response, f'id="post-full-{post.pk}"')
         self.assertContains(response, "展开全文")
-        self.assertContains(response, "查看详情")
+        self.assertNotContains(response, "查看详情")  # 标题和整张卡片都能点进详情
         self.assertContains(response, reverse("board:post_detail", args=[post.pk]))
 
     def test_home_card_assets_define_expand_and_compact_cover_behavior(self):
