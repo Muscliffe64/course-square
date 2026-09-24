@@ -18,7 +18,7 @@ from .forms import CommentForm, PlanForm, PostForm, QuickPostForm, ReportForm
 from .feed import course_feed_page
 from .media import video_embed_url
 from .models import Announcement, Comment, Lecture, Like, Notification, Post, PostImage, Resource, ResourceAccess, Ticket
-from .pending import derive_title, pending_comments, pending_posts
+from .pending import derive_title, pending_comments, pending_posts, pending_tickets
 
 IMAGE_CONTENT_TYPES = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
@@ -47,6 +47,8 @@ def home(request):
     if kind != "resource":
         context["quick_draft"] = request.session.pop("quick_draft", None)
         context["quick_kind"] = kind or Post.Kind.TOPIC
+        if request.GET.get("ask") and not request.user.is_staff:
+            context["quick_kind"] = "teacher"  # 从「我的提问」点「再问一个」过来
         context["ticket_lecture"] = Lecture.latest_held()
     # 右栏热榜在首页各标签都显示；窄屏的内联版本由模板决定只在哪些视图出现。
     context.update(topic_ranking(request.user))
@@ -97,7 +99,7 @@ def quick_post(request):
         # 双击或刷新重复提交：同一内容 30 秒内只记一次。
         if not Ticket.objects.filter(author=request.user, body=data["body"], created_at__gte=recent).exists():
             Ticket.objects.create(author=request.user, lecture=lecture, body=data["body"])
-        messages.success(request, f"已实名交给老师{('（' + lecture.label + '的课后小票）') if lecture else ''}。只有老师能看到，老师会在课上统一回应。")
+        messages.success(request, "已实名发给老师，只有老师能看到。老师回应后会在「消息通知」里提醒你，进度可以在「我的提问」里看。")
         return redirect(back)
     post = Post.objects.filter(author=request.user, body=data["body"], kind=data["kind"], anonymous=data["anonymous"], created_at__gte=recent).first()
     if post is None:
@@ -136,13 +138,45 @@ def _staff_only(user):
 @login_required
 def pending(request):
     _staff_only(request.user)
-    ticket_lecture = Lecture.latest_held()
-    tickets = Ticket.objects.filter(lecture=ticket_lecture) if ticket_lecture else Ticket.objects.none()
+    ticket_list = list(pending_tickets())
+    unread = [t.pk for t in ticket_list if t.teacher_read_at is None]
+    if unread:
+        # 老师在这个页面上看到了，就算已读；学生那边会显示「老师已读」。
+        Ticket.objects.filter(pk__in=unread).update(teacher_read_at=timezone.now())
     return render(request, "board/pending.html", common_context() | {
         "pending_post_list": pending_posts(), "pending_comment_list": pending_comments(),
-        "ticket_lecture": ticket_lecture, "ticket_count": tickets.count(),
+        "pending_ticket_list": ticket_list, "unread_ticket_ids": unread,
         "upcoming_lecture": Lecture.upcoming(), "now": timezone.now(),
     })
+
+@login_required
+@require_POST
+def ticket_respond(request, pk):
+    _staff_only(request.user)
+    ticket = get_object_or_404(Ticket, pk=pk)
+    action = request.POST.get("action")
+    text = request.POST.get("reply", "").strip()[:2000]
+    if action not in Ticket.Response.values:
+        raise Http404
+    if action == Ticket.Response.REPLY and not text:
+        messages.error(request, "回复内容不能为空。")
+        return redirect(reverse("board:pending") + f"#ticket-{ticket.pk}")
+    now = timezone.now()
+    ticket.response, ticket.reply, ticket.responded_at, ticket.responded_by = action, text, now, request.user
+    ticket.teacher_read_at = ticket.teacher_read_at or now
+    ticket.save(update_fields=["response", "reply", "responded_at", "responded_by", "teacher_read_at"])
+    if action != Ticket.Response.READ:
+        Notification.objects.create(recipient=ticket.author, actor=request.user, kind=Notification.Kind.TICKET_REPLY, ticket=ticket)
+    messages.success(request, {"reply": "已回复，学生会收到通知。", "in_class": "已标记为课上回应，学生会收到通知。", "read": "已标记为已读。"}[action])
+    return redirect(reverse("board:pending") + "#pending-tickets")
+
+@login_required
+def my_questions(request):
+    if request.user.is_staff:
+        return redirect("board:pending")
+    tickets = request.user.tickets.select_related("lecture", "responded_by")
+    request.user.notifications.filter(kind=Notification.Kind.TICKET_REPLY, read_at__isnull=True).update(read_at=timezone.now())
+    return render(request, "board/my_questions.html", common_context() | {"tickets": Paginator(tickets, 30).get_page(request.GET.get("page"))})
 
 @login_required
 @require_POST
@@ -324,7 +358,7 @@ def settings_view(request):
 
 @login_required
 def notifications(request):
-    items = request.user.notifications.select_related("actor", "post__planned_lecture", "comment")
+    items = request.user.notifications.select_related("actor", "post__planned_lecture", "comment", "ticket")
     return render(request, "board/notifications.html", common_context() | {"notifications": Paginator(items, 30).get_page(request.GET.get("page"))})
 
 @login_required
@@ -332,6 +366,10 @@ def notifications(request):
 def notification_open(request, pk):
     item = get_object_or_404(Notification, pk=pk, recipient=request.user)
     request.user.notifications.filter(pk=pk, read_at__isnull=True).update(read_at=timezone.now())
+    if item.ticket_id:
+        return redirect(reverse("board:my_questions") + f"#ticket-{item.ticket_id}")
+    if item.post_id is None:
+        return redirect("board:notifications")
     target = reverse("board:post_detail", args=[item.post_id])
     return redirect(target + (f"#comment-{item.comment_id}" if item.comment_id else ""))
 

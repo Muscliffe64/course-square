@@ -195,3 +195,14 @@
 .post-card .post-full-body{font-size:14px;line-height:1.75}
 .resource-feed-card .post-top>.muted{font-size:12px}
 @media(max-width:700px){.post-card .post-full-body{font-size:13px}}
+.pending-more{font-size:12px;font-weight:400;color:var(--muted);margin-left:10px}
+.ticket-body{margin:8px 0 0!important;font-size:14px!important;line-height:1.8!important}
+.ticket-reply-form{margin-top:12px}
+.ticket-reply-form textarea{min-height:64px;font-size:14px}
+.ticket-reply-actions{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ticket-status{border-radius:4px;padding:1px 6px;background:#f0eee9;color:#5f6259}
+.ticket-status.reply{background:#eef5e9;color:#4c6b43}
+.ticket-status.in_class{background:#fcf2df;color:#86582b}
+.ticket-answer{margin-top:12px;padding:12px 14px;border-radius:var(--r-sm);background:#f5f7f0}
+.ticket-answer p{margin:6px 0 0!important}
+.pending-meta .notification-count{margin-left:0}

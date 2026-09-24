@@ -41,9 +41,9 @@ class LectureAdmin(admin.ModelAdmin):
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
-    list_display = ("lecture", "student", "body", "created_at")
+    list_display = ("lecture", "student", "body", "created_at", "response", "responded_at")
     list_select_related = ("author", "lecture")
-    list_filter = ("lecture",)
+    list_filter = ("lecture", "response")
     search_fields = ("body", "author__username", "author__first_name")
     date_hierarchy = "created_at"
     actions = ["export_selected"]
@@ -136,10 +136,10 @@ class VisitLogAdmin(admin.ModelAdmin):
 admin.site.register(Announcement); admin.site.register(Like); admin.site.register(Report); admin.site.register(LoginAttempt)
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ("recipient", "actor", "kind", "post", "created_at", "read_at")
+    list_display = ("recipient", "actor", "kind", "post", "ticket", "created_at", "read_at")
     list_filter = ("kind", "read_at")
     search_fields = ("recipient__username", "recipient__first_name", "post__title")
-    readonly_fields = ("recipient", "actor", "kind", "post", "comment", "created_at", "read_at")
+    readonly_fields = ("recipient", "actor", "kind", "post", "ticket", "comment", "created_at", "read_at")
 
     def has_add_permission(self, request):
         return False

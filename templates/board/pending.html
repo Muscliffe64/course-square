@@ -1,12 +1,31 @@
 {% extends 'base.html' %}
 {% block title %}待回应{% endblock %}{% block breadcrumb %}待回应{% endblock %}
 {% block content %}
-<div class="page-heading"><div><h1>待回应</h1><p>学生发了、你还没接话的内容，最早的排在最前面。在帖子下留言、排进某一讲，或者点「无需回复」，它就会从这里消失。</p></div></div>
+<div class="page-heading"><div><h1>待回应</h1><p>学生发了、你还没接话的内容，最早的排在最前面。在帖子下留言、排进某一讲、回复提问，或者点「无需回复」，它就会从这里消失。</p></div></div>
 <div class="pending-summary">
   <a href="#pending-posts"><strong>{{ pending_post_list|length }}</strong><span>条帖子</span></a>
   <a href="#pending-comments"><strong>{{ pending_comment_list|length }}</strong><span>条留言</span></a>
-  <a href="{% url 'admin:board_ticket_changelist' %}{% if ticket_lecture %}?lecture__id__exact={{ ticket_lecture.pk }}{% endif %}"><strong>{{ ticket_count }}</strong><span>张{% if ticket_lecture %}{{ ticket_lecture.label }}{% endif %}小票 ↗</span></a>
+  <a href="#pending-tickets"><strong>{{ pending_ticket_list|length }}</strong><span>条问老师</span></a>
 </div>
+<section class="pending-section" id="pending-tickets"><h2>问老师 <a class="pending-more" href="{% url 'admin:board_ticket_changelist' %}">全部提问与导出 ↗</a></h2>
+{% for ticket in pending_ticket_list %}
+<article class="pending-item ticket-item" id="ticket-{{ ticket.pk }}">
+  <div class="pending-main">
+    <div class="pending-meta">{% if ticket.pk in unread_ticket_ids %}<span class="notification-count">新</span>{% endif %}<span class="author-name">{% if ticket.author.first_name %}{{ ticket.author.first_name }}{% else %}学号 {{ ticket.author.username }}{% endif %}</span><time datetime="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|date:'n月j日 H:i' }} · 等了 {{ ticket.created_at|timesince:now }}</time>{% if ticket.lecture %}<span>{{ ticket.lecture.label }}后</span>{% endif %}</div>
+    <p class="ticket-body">{{ ticket.body|linebreaksbr }}</p>
+    <form class="ticket-reply-form" method="post" action="{% url 'board:ticket_respond' ticket.pk %}">{% csrf_token %}
+      <label class="sr-only" for="ticket-reply-{{ ticket.pk }}">回复内容</label>
+      <textarea id="ticket-reply-{{ ticket.pk }}" name="reply" maxlength="2000" rows="2" placeholder="直接回复，只有这位同学能看到；选「课上回应」时可以留一句说明，也可以不写"></textarea>
+      <div class="ticket-reply-actions">
+        <button class="button primary small-button" type="submit" name="action" value="reply">发送回复</button>
+        <button class="button secondary small-button" type="submit" name="action" value="in_class">课上回应</button>
+        <button class="text-button" type="submit" name="action" value="read">已读，无需回复</button>
+      </div>
+    </form>
+  </div>
+</article>
+{% empty %}<p class="pending-empty">没有待回应的提问。</p>{% endfor %}
+</section>
 <section class="pending-section" id="pending-posts"><h2>帖子</h2>
 {% for post in pending_post_list %}
 <article class="pending-item" id="post-{{ post.pk }}">

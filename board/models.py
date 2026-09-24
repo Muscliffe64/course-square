@@ -223,10 +223,12 @@ class Notification(models.Model):
         COMMENT_REPLY = "comment_reply", "评论被回复"
         POST_LIKE = "post_like", "帖子获赞"
         POST_PLANNED = "post_planned", "帖子排进讲次"
+        TICKET_REPLY = "ticket_reply", "老师回应了提问"
     recipient = models.ForeignKey(User, verbose_name="接收人", on_delete=models.CASCADE, related_name="notifications")
     actor = models.ForeignKey(User, verbose_name="触发人", on_delete=models.SET_NULL, null=True, related_name="sent_notifications")
     kind = models.CharField("类型", max_length=24, choices=Kind.choices)
-    post = models.ForeignKey(Post, verbose_name="帖子", on_delete=models.CASCADE, related_name="notifications")
+    post = models.ForeignKey(Post, verbose_name="帖子", on_delete=models.CASCADE, related_name="notifications", null=True, blank=True)
+    ticket = models.ForeignKey("Ticket", verbose_name="提问", on_delete=models.CASCADE, related_name="notifications", null=True, blank=True)
     comment = models.ForeignKey(Comment, verbose_name="评论", on_delete=models.SET_NULL, null=True, blank=True, related_name="notifications")
     # Fixed at creation: the comment may be deleted later, and its anonymity must survive that.
     actor_anonymous = models.BooleanField("触发人匿名", default=False)
@@ -350,11 +352,34 @@ class ResourceAccess(models.Model):
 
 
 class Ticket(models.Model):
-    """课后小票：实名，只有老师能看。"""
+    """「问老师」：实名，只有老师和提问的学生本人能看。
+
+    老师可以直接文字回复、标记「课上回应」，或者只标记已读；
+    前两种会给学生发站内通知，学生在「我的提问」里看进度。
+    """
+    class Response(models.TextChoices):
+        REPLY = "reply", "文字回复"
+        IN_CLASS = "in_class", "课上回应"
+        READ = "read", "已读，无需回复"
     author = models.ForeignKey(User, verbose_name="学生", on_delete=models.CASCADE, related_name="tickets")
     lecture = models.ForeignKey(Lecture, verbose_name="讲次", on_delete=models.SET_NULL, null=True, blank=True, related_name="tickets")
     body = models.TextField("内容", max_length=1000)
     created_at = models.DateTimeField("提交时间", auto_now_add=True)
+    teacher_read_at = models.DateTimeField("老师已读", null=True, blank=True)
+    response = models.CharField("回应方式", max_length=10, choices=Response.choices, blank=True, default="", db_default="")
+    reply = models.TextField("回复内容", max_length=2000, blank=True, default="", db_default="")
+    responded_at = models.DateTimeField("回应时间", null=True, blank=True)
+    responded_by = models.ForeignKey(User, verbose_name="回应人", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    @property
+    def status_label(self):
+        if self.response == self.Response.REPLY:
+            return "老师已回复"
+        if self.response == self.Response.IN_CLASS:
+            return "老师会在课上回应"
+        if self.response == self.Response.READ or self.teacher_read_at:
+            return "老师已读"
+        return "已送达"
 
     def __str__(self):
         return self.body[:30]

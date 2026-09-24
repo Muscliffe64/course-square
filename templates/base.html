@@ -39,6 +39,7 @@
         <a href="{% url 'board:home' %}?kind=showcase" class="{% if kind == 'showcase' %}active{% endif %}"><svg><use href="#i-spark"/></svg><span>作品与分享</span></a>
         <a href="{% url 'board:home' %}?kind=resource" class="{% if kind == 'resource' or request.resolver_match.url_name == 'resources' or request.resolver_match.url_name == 'resource_read' %}active{% endif %}"><svg><use href="#i-file"/></svg><span>课程资料</span></a>
         <a href="{% url 'board:notifications' %}" class="{% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"><svg><use href="#i-bell"/></svg><span>消息通知</span>{% if notifications_unread_count %}<strong class="notification-count">{{ notifications_unread_count }}</strong>{% endif %}</a>
+        {% if not user.is_staff %}<a href="{% url 'board:my_questions' %}" class="{% if request.resolver_match.url_name == 'my_questions' %}active{% endif %}"><svg><use href="#i-inbox"/></svg><span>我的提问</span></a>{% endif %}
         {% if user.is_staff %}<a href="{% url 'board:pending' %}" class="{% if request.resolver_match.url_name == 'pending' %}active{% endif %}"><svg><use href="#i-inbox"/></svg><span>待回应</span>{% if pending_count %}<strong class="notification-count">{{ pending_count }}</strong>{% endif %}</a>{% endif %}
       </nav>
       <div class="sidebar-note"><span class="tiny-dot"></span> 整周开放<p>想法不必成熟，<br>随时带来这里聊聊。</p></div>

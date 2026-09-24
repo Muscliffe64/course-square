@@ -9,5 +9,5 @@ def course_context(request):
         if request.user.is_staff:
             from .pending import pending_counts
             counts = pending_counts()
-            context["pending_count"] = counts["posts"] + counts["comments"]
+            context["pending_count"] = counts["posts"] + counts["comments"] + counts["tickets"]
     return context

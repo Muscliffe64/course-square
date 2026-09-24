@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}我的提问{% endblock %}{% block breadcrumb %}我的提问{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>我的提问</h1><p>你通过「问老师」发出的内容都在这里，只有你和老师能看到。</p></div>
+<a class="button primary" href="{% url 'board:home' %}?ask=1#quick-body">再问一个</a></div>
+<section class="pending-section my-questions">
+{% for ticket in tickets %}
+<article class="pending-item ticket-item" id="ticket-{{ ticket.pk }}">
+  <div class="pending-main">
+    <div class="pending-meta"><time datetime="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|date:'n月j日 H:i' }}</time><span class="ticket-status {{ ticket.response|default:'waiting' }}">{{ ticket.status_label }}</span></div>
+    <p class="ticket-body">{{ ticket.body|linebreaksbr }}</p>
+    {% if ticket.reply %}<div class="ticket-answer"><div class="pending-meta"><span class="author-name">老师{% if ticket.response == 'in_class' %}（课上回应）{% endif %}</span><time>{{ ticket.responded_at|date:'n月j日 H:i' }}</time></div><p>{{ ticket.reply|linebreaksbr }}</p></div>
+    {% elif ticket.response == 'in_class' %}<div class="ticket-answer"><p>老师会在课上统一讲这个问题。</p></div>{% endif %}
+  </div>
+</article>
+{% empty %}<div class="empty-state"><h2>暂时没有消息</h2><p>在首页发帖框选「问老师」，就能单独问老师。</p></div>{% endfor %}
+</section>
+{% if tickets.has_previous %}<a href="?page={{ tickets.previous_page_number }}">上一页</a>{% endif %}
+{% if tickets.has_next %}<a href="?page={{ tickets.next_page_number }}">下一页</a>{% endif %}
+{% endblock %}

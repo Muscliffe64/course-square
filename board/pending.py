@@ -9,6 +9,10 @@ from django.db.models import Count, Exists, OuterRef
 from .models import Comment, Post, Ticket
 
 
+def pending_tickets():
+    return Ticket.objects.filter(response="").select_related("author", "lecture").order_by("created_at")
+
+
 def pending_posts():
     staff_comment = Comment.objects.filter(post=OuterRef("pk"), author__is_staff=True)
     return (Post.objects.filter(author__is_staff=False, status=Post.Status.OPEN, planned_lecture__isnull=True, teacher_dismissed=False)
@@ -28,7 +32,7 @@ def pending_comments():
 
 
 def pending_counts():
-    return {"posts": pending_posts().count(), "comments": pending_comments().count()}
+    return {"posts": pending_posts().count(), "comments": pending_comments().count(), "tickets": pending_tickets().count()}
 
 
 def new_after(last_post_id, last_comment_id, last_ticket_id):

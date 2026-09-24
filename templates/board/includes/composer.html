@@ -10,7 +10,7 @@
   <label class="composer-lead" for="quick-body">
     <span data-mode="topic" {% if mode == 'showcase' or mode == 'teacher' %}hidden{% endif %}><b>下节课想听什么？</b>发出后进入「想听热榜」，大家点 ♥ 决定讲什么。</span>
     <span data-mode="showcase" {% if mode != 'showcase' %}hidden{% endif %}><b>最近做了点什么？</b>一句话也行，第一句会自动当标题。</span>
-    <span data-mode="teacher" {% if mode != 'teacher' %}hidden{% endif %}><b>想单独问老师？</b>实名，只有老师能看到，不会出现在广场上；老师会在课上统一回应{% if ticket_lecture %}（算作{{ ticket_lecture.label }}的课后小票）{% endif %}。</span>
+    <span data-mode="teacher" {% if mode != 'teacher' %}hidden{% endif %}><b>想单独问老师？</b>实名，只有老师能看到，不会出现在广场上。老师会直接回复你，或者在课上统一回应；进度在<a href="{% url 'board:my_questions' %}">「我的提问」</a>里看。</span>
   </label>
   <div class="composer-row">
     <span class="avatar" aria-hidden="true">{{ user.first_name|default:'我'|slice:':1' }}</span>
