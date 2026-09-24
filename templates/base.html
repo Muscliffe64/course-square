@@ -44,7 +44,7 @@
       <div class="sidebar-note"><span class="tiny-dot"></span> 整周开放<p>想法不必成熟，<br>随时带来这里聊聊。</p></div>
       <div class="sidebar-bottom">
         {% if user.is_staff %}<a class="admin-link" href="{% url 'admin:index' %}"><svg class="icon"><use href="#i-lock"/></svg> 管理后台 <span>↗</span></a>{% endif %}
-        <a class="account-link" href="{% url 'board:settings' %}"><span class="avatar">{{ user.first_name|default:'我'|slice:':1' }}</span><span>{{ user.first_name|default:'课程管理员' }}<small>{% if user.is_staff %}管理员{% else %}课程成员{% endif %}</small></span><span class="account-arrow">›</span></a>
+        <a class="account-link" href="{% url 'board:settings' %}"><span class="avatar">{{ user.first_name|default:'我'|slice:':1' }}</span><span>{% if user.first_name %}{{ user.first_name }}{% elif user.is_staff %}课程管理员{% else %}学号 {{ user.username }}{% endif %}<small>{% if user.is_staff %}管理员{% else %}课程成员{% endif %}</small></span><span class="account-arrow">›</span></a>
       </div>
     </aside>
     <div class="workspace">
