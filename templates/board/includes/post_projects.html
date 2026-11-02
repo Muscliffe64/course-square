@@ -1,0 +1,11 @@
+{% for project in post.projects.all %}
+<section class="project-section" aria-labelledby="project-title-{{ project.pk }}">
+<h2 id="project-title-{{ project.pk }}">{{ forloop.counter }}. {{ project.title }}</h2>
+<div class="rich-text">{{ project.description|linebreaksbr }}</div>
+{% if project.creator %}<p class="project-creator">作品作者：{{ project.creator }}</p>{% endif %}
+<video class="project-video" controls playsinline preload="none" src="{% url 'board:post_project_video' post.pk project.pk %}" {% if project.poster %}poster="{% url 'board:post_project_poster' post.pk project.pk %}"{% endif %} aria-label="{{ project.title }}的演示视频">你的浏览器不支持视频播放。</video>
+<p class="video-error" hidden>视频暂时无法播放，请打开视频重试。</p>
+<a href="{% url 'board:post_project_video' post.pk project.pk %}" target="_blank" rel="noopener">打开视频 ↗</a>
+</section>
+{% endfor %}
+{% if post.closing_body %}<div class="rich-text post-closing">{{ post.closing_body|linebreaksbr }}</div>{% endif %}

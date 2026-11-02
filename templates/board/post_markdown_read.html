@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}{{ post.markdown_filename }}{% endblock %}{% block breadcrumb %}分享 · Markdown 阅读{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'board/markdown-reader.css' %}">
+<div class="reader-wrap"><header class="reader-head"><div><div class="author-row">{% include 'board/includes/author.html' with obj=post %}<time>{{ post.created_at|date:'Y年n月j日' }}</time></div><h1>{{ post.markdown_filename }}</h1></div><nav class="reader-actions" aria-label="文档操作"><a class="button secondary small-button" href="{% url 'board:post_detail' post.pk %}">返回帖子</a><a class="button primary small-button" href="{% url 'board:post_markdown_download' post.pk %}">下载原文件</a></nav></header><article class="reader-body">{{ content_html|safe }}</article></div>
+{% endblock %}

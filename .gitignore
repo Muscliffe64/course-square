@@ -11,3 +11,8 @@ staticfiles/
 private/
 test-results/
 .DS_Store
+node_modules/
+*.pem
+*.key
+secrets/
+uploads/

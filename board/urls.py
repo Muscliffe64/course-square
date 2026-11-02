@@ -1,7 +1,9 @@
 from django.urls import path
-from . import views
+from . import views, post_markdown
 app_name = "board"
 urlpatterns = [
+    path("posts/<int:pk>/markdown/read/", post_markdown.read, name="post_markdown_read"),
+    path("posts/<int:pk>/markdown/download/", post_markdown.download, name="post_markdown_download"),
     path("", views.home, name="home"),
     path("posts/new/", views.post_create, name="post_create"),
     path("posts/quick/", views.quick_post, name="quick_post"),
@@ -22,6 +24,8 @@ urlpatterns = [
     path("posts/<int:pk>/image/", views.post_image, name="post_image"),
     path("posts/<int:post_pk>/images/<int:image_pk>/", views.post_gallery_image, name="post_gallery_image"),
     path("posts/<int:post_pk>/images/<int:image_pk>/thumb/", views.post_gallery_thumb, name="post_gallery_thumb"),
+    path("posts/<int:post_pk>/projects/<int:project_pk>/video/", views.post_project_video, name="post_project_video"),
+    path("posts/<int:post_pk>/projects/<int:project_pk>/poster/", views.post_project_poster, name="post_project_poster"),
     path("posts/<int:pk>/audio/", views.post_audio, name="post_audio"),
     path("posts/<int:pk>/report/", views.report_post, name="report_post"),
     path("settings/", views.settings_view, name="settings"),

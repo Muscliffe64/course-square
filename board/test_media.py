@@ -1,4 +1,5 @@
 import io
+import re
 import tempfile
 from email.message import Message
 from pathlib import Path
@@ -12,7 +13,7 @@ from django.urls import reverse
 
 from .forms import PostAdminForm, PostForm
 from .media import video_embed_url
-from .models import MAX_AUDIO_BYTES, Post, validate_audio
+from .models import MAX_AUDIO_BYTES, MAX_IMAGE_BYTES, Post, validate_audio
 
 
 class PostMediaTests(TestCase):
@@ -225,4 +226,7 @@ class MediaValidationTests(SimpleTestCase):
 
     def test_nginx_accepts_combined_maximum_uploads(self):
         config = (Path(__file__).resolve().parents[1] / "deploy/nginx.conf").read_text()
-        self.assertIn("client_max_body_size 40m;", config)
+        limit = re.search(r"client_max_body_size\s+(\d+)m;", config)
+        self.assertIsNotNone(limit)
+        required = max(8 * MAX_IMAGE_BYTES, MAX_AUDIO_BYTES + MAX_IMAGE_BYTES)
+        self.assertGreaterEqual(int(limit.group(1)) * 1024 * 1024, required + 1024 * 1024)

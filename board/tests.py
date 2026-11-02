@@ -372,6 +372,8 @@ class BoardTests(TestCase):
                 "status": Post.Status.ANSWERED,
                 "pinned": "on",
                 "image": SimpleUploadedFile("identity.png", stream.getvalue(), content_type="image/png"),
+                "projects-TOTAL_FORMS": "0",
+                "projects-INITIAL_FORMS": "0",
                 "_save": "保存",
             },
         )
@@ -397,6 +399,8 @@ class BoardTests(TestCase):
                 "status": post.status,
                 "pinned": "on",
                 "image": SimpleUploadedFile("replacement.png", replacement.getvalue(), content_type="image/png"),
+                "projects-TOTAL_FORMS": "0",
+                "projects-INITIAL_FORMS": "0",
                 "_save": "保存",
             },
         )

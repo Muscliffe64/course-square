@@ -14,7 +14,7 @@ class PrivateDynamicResponseMiddleware:
 class VisitLoggingMiddleware:
     """记录页面访问的 IP 与用户，供管理员在后台查看。静态资源、图片音频和健康检查不计入。"""
     SKIP_PREFIXES = ("/static/", "/healthz/")
-    SKIP_URL_NAMES = {"post_image", "post_gallery_image", "post_gallery_thumb", "post_audio"}
+    SKIP_URL_NAMES = {"post_image", "post_gallery_image", "post_gallery_thumb", "post_audio", "post_project_video", "post_project_poster"}
 
     def __init__(self, get_response):
         self.get_response = get_response

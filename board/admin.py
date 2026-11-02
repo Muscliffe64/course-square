@@ -9,9 +9,20 @@ from .models import Announcement, Comment, Lecture, Like, LoginAttempt, LoginEve
 from .participation import SORTS, participation, participation_xlsx
 from .tickets import tickets_csv
 
+from .models import PostProject
+from .projects import ProjectForm, BaseProjectFormSet
+
+class PostProjectInline(admin.StackedInline):
+    model = PostProject
+    form = ProjectForm
+    formset = BaseProjectFormSet
+    extra = 1
+    max_num = 10
+
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
     form = PostAdminForm
+    inlines = [PostProjectInline]
     list_display = ("title", "kind", "author", "anonymous", "status", "planned_lecture", "pinned", "created_at")
     list_filter = ("kind", "anonymous", "status", "planned_lecture", "pinned", "teacher_dismissed")
 

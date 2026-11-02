@@ -1,5 +1,9 @@
+{% load static %}
+<a class="composer-launcher" href="{% url 'board:post_create' %}?kind={{ quick_kind }}" data-composer-open aria-haspopup="dialog" aria-controls="quick-composer-dialog" aria-expanded="false"><span data-composer-summary>分享点什么……</span><span class="composer-launcher-arrow" aria-hidden="true">⌄</span></a>
+<dialog id="quick-composer-dialog" class="composer-dialog" aria-labelledby="composer-dialog-title" data-composer-dialog {% if quick_draft or quick_kind == 'teacher' %}data-composer-reopen{% endif %}>
+  <header class="composer-dialog-header"><h2 id="composer-dialog-title">发布想法</h2><button type="button" class="composer-close" data-composer-close aria-label="收起发布窗口">×</button></header>
 {% with mode=quick_draft.mode|default:quick_kind %}
-<form class="composer{% if mode == 'teacher' %} is-private{% endif %}" method="post" action="{% url 'board:quick_post' %}" data-composer>
+<form class="composer composer-spacious{% if mode == 'teacher' %} is-private{% endif %}" method="post" enctype="multipart/form-data" data-image-picker data-image-help="拖入图片或粘贴截图 · 最多 8 张，每张 8 MB" action="{% url 'board:quick_post' %}" data-composer data-markdown-form>
   {% csrf_token %}
   <input type="hidden" name="tab" value="{{ kind }}">
   <div class="composer-modes" role="radiogroup" aria-label="发到哪里">
@@ -8,22 +12,49 @@
     {% if not user.is_staff %}<label><input type="radio" name="mode" value="teacher" {% if mode == 'teacher' %}checked{% endif %}><span>问老师</span></label>{% endif %}
   </div>
   <label class="composer-lead" for="quick-body">
-    <span data-mode="topic" {% if mode == 'showcase' or mode == 'teacher' %}hidden{% endif %}><b>下节课想听什么？</b>发出后进入「想听热榜」，大家点 ♥ 决定讲什么。</span>
+    <span data-mode="topic" {% if mode == 'showcase' or mode == 'teacher' %}hidden{% endif %}><b>下节课想听什么？</b>大家点 ♥，一起决定下节课讲什么。</span>
     <span data-mode="showcase" {% if mode != 'showcase' %}hidden{% endif %}><b>最近做了点什么？</b>一句话也行，第一句会自动当标题。</span>
     <span data-mode="teacher" {% if mode != 'teacher' %}hidden{% endif %}><b>想单独问老师？</b>实名，只有老师能看到，不会出现在广场上。老师会直接回复你，或者在课上统一回应；进度在<a href="{% url 'board:my_questions' %}">「我的提问」</a>里看。</span>
   </label>
-  <div class="composer-row">
-    <span class="avatar" aria-hidden="true">{{ user.first_name|default:'我'|slice:':1' }}</span>
-    <textarea id="quick-body" name="body" rows="1" maxlength="1000" required data-autosize
+  <div class="composer-editor">
+    <textarea id="quick-body" name="body" rows="3" maxlength="1000" required data-autosize
       data-placeholder-topic="比如：扩散模型到底是怎么从一堆噪声里画出图的？"
       data-placeholder-showcase="比如：用 Whisper 给采访录音自动出了字幕，流程是……"
       data-placeholder-teacher="比如：今天的反向传播我只听懂了一半，卡在求导那一步"
       placeholder="{% if mode == 'showcase' %}比如：用 Whisper 给采访录音自动出了字幕，流程是……{% elif mode == 'teacher' %}比如：今天的反向传播我只听懂了一半，卡在求导那一步{% else %}比如：扩散模型到底是怎么从一堆噪声里画出图的？{% endif %}">{{ quick_draft.body|default:'' }}</textarea>
-    <button class="button primary" type="submit" data-composer-submit>{% if mode == 'teacher' %}交给老师{% else %}发布{% endif %}</button>
+    <div class="composer-gallery" data-mode="topic showcase" {% if mode == 'teacher' %}hidden{% endif %}>
+      <div data-image-previews hidden></div>
+    </div>
   </div>
-  <div class="composer-options" data-mode="topic showcase" {% if mode == 'teacher' %}hidden{% endif %}>
-    <label class="checkbox-label"><input type="checkbox" name="anonymous" {% if quick_draft.anonymous %}checked{% endif %}> 匿名</label>
-    <a class="composer-full" href="{% url 'board:post_create' %}?kind={% if mode == 'showcase' %}showcase{% else %}topic{% endif %}">加图片、链接或长文 →</a>
+  <div class="composer-image-hint" data-mode="topic showcase" {% if mode == 'teacher' %}hidden{% endif %}>
+    <p id="quick-image-status" data-image-status aria-live="polite">拖入图片或粘贴截图 · 最多 8 张，每张 8 MB</p>
+  </div>
+  <div class="markdown-picker composer-markdown" data-markdown-picker data-mode="topic showcase" {% if mode == 'teacher' %}hidden{% endif %}>
+    <label for="quick-markdown" class="markdown-upload-label">添加 Markdown</label>
+    <input type="file" name="markdown_file" id="quick-markdown" accept=".md,.markdown" data-markdown-input>
+    <button type="button" class="text-button" data-markdown-remove hidden>移除</button>
+    <p class="help-text" data-markdown-status aria-live="polite">每帖一份，最大 2 MB；可直接分享文件，附言选填。</p>
+  </div>
+  <input type="hidden" name="cover_choice" data-image-cover>
+  <div class="composer-toolbar">
+    <div class="composer-tools" data-mode="topic showcase" {% if mode == 'teacher' %}hidden{% endif %}>
+      <span data-image-controls {% if mode == 'teacher' %}hidden{% endif %}>
+        <input type="file" name="images" multiple accept="image/jpeg,image/png,image/webp" data-image-input hidden>
+        <button type="button" class="image-picker-add" data-image-add><span aria-hidden="true">＋</span> 添加图片</button>
+      </span>
+      <label class="checkbox-label"><input type="checkbox" name="anonymous" {% if quick_draft.anonymous %}checked{% endif %}> 匿名</label>
+    </div>
+    <div class="composer-actions">
+      <a class="composer-full" data-mode="topic showcase" {% if mode == 'teacher' %}hidden{% endif %} href="{% url 'board:post_create' %}?kind={% if mode == 'showcase' %}showcase{% else %}topic{% endif %}">完整编辑器 ↗</a>
+      <button class="button primary" type="submit" data-composer-submit>{% if mode == 'teacher' %}交给老师{% else %}发布{% endif %}</button>
+    </div>
   </div>
 </form>
 {% endwith %}
+</dialog>
+
+<link rel="stylesheet" href="{% static 'board/image-picker.css' %}">
+<script src="{% static 'board/image-picker.js' %}" defer></script>
+
+<link rel="stylesheet" href="{% static 'board/compact-composer.css' %}">
+<script src="{% static 'board/compact-composer.js' %}" defer></script>

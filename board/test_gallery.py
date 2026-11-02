@@ -298,4 +298,4 @@ class PostGalleryDisplayTests(TestCase):
 class PostGalleryAdminTests(TestCase):
     def test_admin_registers_post_images_without_post_inline_formset(self):
         self.assertIn(PostImage, admin.site._registry)
-        self.assertFalse(admin.site._registry[Post].inlines)
+        self.assertNotIn(PostImage, [inline.model for inline in admin.site._registry[Post].inlines])

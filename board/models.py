@@ -11,6 +11,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 from .thumbnails import ensure_thumbnail, thumbnail_upload
+from .post_markdown import markdown_upload, validate_post_markdown, markdown_digest
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_RESOURCE_BYTES = 25 * 1024 * 1024
@@ -116,6 +117,7 @@ class Post(models.Model):
     author = models.ForeignKey(User, verbose_name="作者", on_delete=models.CASCADE, related_name="posts")
     title = models.CharField("标题", max_length=120)
     body = models.TextField("内容", max_length=5000)
+    closing_body = models.TextField("结尾补充", max_length=2000, blank=True, db_default='')
     kind = models.CharField("栏目", max_length=16, choices=Kind.choices)
     anonymous = models.BooleanField("匿名", default=False)
     link = models.URLField("链接", max_length=500, blank=True)
@@ -123,6 +125,9 @@ class Post(models.Model):
     image_original_filename = models.CharField("图片原文件名", max_length=255, blank=True, editable=False)
     audio = models.FileField("音频", upload_to=random_audio_upload, validators=[validate_audio], blank=True)
     audio_original_filename = models.CharField("音频原文件名", max_length=255, blank=True, editable=False)
+    markdown_file = models.FileField("Markdown", upload_to=markdown_upload, max_length=255, validators=[validate_post_markdown], blank=True, default="", db_default="")
+    markdown_filename = models.CharField("Markdown 原文件名", max_length=255, blank=True, default="", db_default="", editable=False)
+    markdown_sha256 = models.CharField("Markdown SHA-256", max_length=64, blank=True, default="", db_default="", editable=False)
     audio_link = models.URLField("音频链接", max_length=500, blank=True)
     video_link = models.URLField("视频链接", max_length=500, blank=True)
     status = models.CharField("状态", max_length=16, choices=Status.choices, default=Status.OPEN)
@@ -134,6 +139,16 @@ class Post(models.Model):
         update_fields = kwargs.get("update_fields")
         if update_fields is not None:
             update_fields = set(update_fields)
+        if update_fields is None or "markdown_file" in update_fields:
+            if self.markdown_file and not self.markdown_file._committed:
+                validate_post_markdown(self.markdown_file)
+                self.markdown_filename = Path(self.markdown_file.name).name
+                self.markdown_sha256 = markdown_digest(self.markdown_file)
+            elif not self.markdown_file:
+                self.markdown_filename = ""
+                self.markdown_sha256 = ""
+            if update_fields is not None:
+                update_fields.update({"markdown_filename", "markdown_sha256"})
         for field in ("image", "audio"):
             upload = getattr(self, field)
             if upload and not upload._committed and (update_fields is None or field in update_fields):
@@ -172,6 +187,41 @@ class Post(models.Model):
         ordering = ["-pinned", "-created_at"]
         verbose_name = "帖子"
         verbose_name_plural = "帖子"
+
+
+def random_project_upload(instance, filename):
+    return f"post-projects/{uuid.uuid4().hex}{Path(filename).suffix.lower()}"
+
+
+def validate_project_video(upload):
+    from .projects import validate_video
+    validate_video(upload)
+
+
+class PostProject(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="projects")
+    title = models.CharField("项目标题", max_length=120)
+    description = models.TextField("项目介绍", max_length=1000)
+    creator = models.CharField("作品作者", max_length=120, blank=True)
+    position = models.PositiveIntegerField("顺序")
+    video = models.FileField("视频", upload_to=random_project_upload, validators=[validate_project_video])
+    poster = models.ImageField("视频封面", upload_to=random_project_upload, validators=[validate_image], blank=True)
+    original_filename = models.CharField(max_length=255, blank=True, editable=False)
+
+    def save(self, *args, **kwargs):
+        if self.video and not self.video._committed:
+            self.original_filename = Path(self.video.name).name
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"original_filename"}
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["position", "pk"]
+        verbose_name = "展示项目"
+        verbose_name_plural = "展示项目"
+
+    def __str__(self):
+        return self.title
 
 
 class PostImage(models.Model):

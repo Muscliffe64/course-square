@@ -1,0 +1,2 @@
+{% if widget.is_initial %}<div class="markdown-existing"><a href="{% url 'board:post_markdown_download' widget.value.instance.pk %}">{{ widget.value.instance.markdown_filename }}</a><label><input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}" data-markdown-clear {% if widget.attrs.checked %}checked{% endif %} {% if widget.attrs.disabled %}disabled{% endif %}> 移除已上传的 Markdown</label></div>{% endif %}
+<input type="file" name="{{ widget.name }}" {% include 'django/forms/widgets/attrs.html' %}>

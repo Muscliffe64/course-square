@@ -1,0 +1,7 @@
+.project-section { margin: 2rem 0; min-width: 0; overflow-wrap: anywhere; }
+.project-video { display: block; width: 100%; height: auto; max-height: 70vh; object-fit: contain; background: #111; margin: 1rem 0; }
+.project-creator, .video-error { margin: .75rem 0; }
+.project-form-row { min-width: 0; padding: 1rem; margin: 1rem 0; border: 1px solid #d8d8d8; border-radius: 12px; }
+.project-form-row input[type=file] { width: 100%; max-width: 100%; }
+.post-closing { margin: 2rem 0; }
+@media(max-width: 600px) { .project-video { max-height: 55vh; } }

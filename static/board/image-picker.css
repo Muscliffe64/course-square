@@ -1,0 +1,49 @@
+[data-image-picker]{transition:outline-color .15s}
+[data-image-picker].image-picker-dragging{outline:2px dashed var(--orange,#c9633d);outline-offset:4px}
+.image-picker-previews,[data-image-previews]{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin:12px 0}
+[data-image-previews][hidden],[data-image-controls][hidden]{display:none}
+.image-picker-item{position:relative;min-width:0;border:1px solid #e1e4dc;border-radius:8px;overflow:hidden;background:#fff}
+.image-picker-item img{width:100%;height:100px;object-fit:cover;display:block}
+.image-picker-item span{display:block;font-size:11px;padding:7px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#697264}
+.image-picker-item button{display:block;margin:0 8px 8px;padding:4px 7px;border:1px solid #e1e4dc;border-radius:4px;background:#fff;font:inherit;font-size:11px;cursor:pointer}
+[data-image-status]{font-size:12px;color:#697264;margin:8px 0}
+[data-image-status].image-picker-error{color:#ab3d27}
+.image-picker-add{background:transparent;border:1px solid #e1e4dc;border-radius:6px;padding:6px 10px;font:inherit;font-size:12px;color:#697264;cursor:pointer}
+.image-picker-add:hover,.image-picker-add:focus-visible{border-color:#c9633d;color:#a74e2e}
+
+/* 首页快捷发帖：文字与图片共用编辑区，操作统一收在底部。 */
+.composer.composer-spacious{padding:24px;border-radius:16px}
+.composer-spacious .composer-modes{margin-bottom:20px;max-width:100%;flex-wrap:wrap}
+.composer-spacious .composer-modes span{padding:8px 16px;min-height:44px;display:flex;align-items:center}
+.composer-spacious .composer-lead{margin-bottom:16px;line-height:1.7}
+.composer-spacious .composer-lead b{display:block;margin:0 0 3px;font-size:16px}
+.composer-spacious .composer-editor{border:1px solid var(--line,#e1e4dc);border-radius:12px;background:var(--paper,#fff);overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.composer-spacious .composer-editor:focus-within{border-color:var(--orange,#c9633d);box-shadow:0 0 0 2px var(--orange-soft,#fff1e8)}
+.composer-spacious.is-private .composer-editor:focus-within{border-color:var(--green,#49734f);box-shadow:0 0 0 2px var(--green-soft,#edf3e9)}
+.composer-spacious textarea{display:block;width:100%;min-height:104px;max-height:240px;border:0;border-radius:0;padding:16px;font-size:15px;line-height:1.7;background:transparent}
+.composer-spacious textarea:focus{border:0;box-shadow:none}
+.composer-spacious [data-image-previews]{grid-template-columns:repeat(auto-fill,minmax(110px,140px));gap:12px;margin:0;padding:0 16px 16px}
+.composer-spacious .image-picker-item{border-radius:10px;background:var(--paper,#fff)}
+.composer-spacious .image-picker-item button{min-width:44px;min-height:44px}
+.composer-spacious [data-image-status]{margin:9px 2px 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.composer-spacious .composer-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft,#eff0eb)}
+.composer-spacious .composer-tools,.composer-spacious .composer-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;min-width:0}
+.composer-spacious .composer-actions{margin-left:auto}
+.composer-spacious .image-picker-add{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:8px 10px;border-color:transparent;border-radius:8px;color:var(--ink,#243b37);font-size:13px;white-space:nowrap}
+.composer-spacious .image-picker-add>span{font-size:18px;line-height:1}
+.composer-spacious .image-picker-add:hover{background:var(--orange-soft,#fff1e8);color:var(--orange,#c9633d)}
+.composer-spacious .image-picker-add:focus-visible{outline:2px solid var(--orange,#c9633d);outline-offset:2px}
+.composer-spacious .checkbox-label{display:inline-flex;align-items:center;gap:7px;min-height:44px;margin:0;white-space:nowrap}
+.composer-spacious .checkbox-label input{width:16px;height:16px;margin:0}
+.composer-spacious .composer-full{display:inline-flex;align-items:center;min-height:44px;margin:0;width:auto;font-size:13px;white-space:nowrap}
+.composer-spacious .button.primary{min-width:80px;min-height:44px;border-radius:10px}
+@media(max-width:700px){
+  .composer.composer-spacious{padding:18px 16px;border-radius:14px}
+  .composer-spacious .composer-modes{margin-bottom:16px;gap:2px}
+  .composer-spacious .composer-modes span{padding:8px 11px;font-size:12px}
+  .composer-spacious textarea{padding:14px;font-size:16px}
+  .composer-spacious [data-image-previews]{grid-template-columns:repeat(auto-fill,minmax(95px,1fr));padding:0 14px 14px}
+  .composer-spacious .composer-toolbar{gap:4px 12px;margin-top:12px}
+  .composer-spacious .composer-tools,.composer-spacious .composer-actions{gap:8px 12px}
+  .composer-spacious .image-picker-add{padding-left:0;padding-right:4px}
+}

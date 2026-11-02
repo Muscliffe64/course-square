@@ -17,8 +17,12 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from .forms import CommentForm, PlanForm, PostForm, QuickPostForm, ReportForm
 from .feed import course_feed_page
 from .media import video_embed_url
-from .models import Announcement, Comment, Lecture, Like, Notification, Post, PostImage, Resource, ResourceAccess, Ticket
+from .models import Announcement, Comment, Lecture, Like, Notification, Post, PostImage, PostProject, Resource, ResourceAccess, Ticket
 from .pending import derive_title, pending_comments, pending_posts, pending_tickets
+from .quick_images import matching_gallery
+from .post_markdown import markdown_digest
+from .projects import project_formset_for_request
+from .video import video_response
 
 IMAGE_CONTENT_TYPES = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
@@ -79,13 +83,16 @@ QUICK_DUPLICATE_WINDOW = timedelta(seconds=30)
 @login_required
 @require_POST
 def quick_post(request):
-    form = QuickPostForm(request.POST)
+    form = QuickPostForm(request.POST, request.FILES)
     tab = request.POST.get("tab") if request.POST.get("tab") in Post.Kind.values else ""
     back = reverse("board:home") + (f"?kind={tab}" if tab else "")
     if not form.is_valid():
         mode = request.POST.get("mode") if request.POST.get("mode") in {"topic", "showcase", "teacher"} else ""
         request.session["quick_draft"] = {"body": request.POST.get("body", "")[:1000], "anonymous": bool(request.POST.get("anonymous")), "mode": mode}
-        messages.error(request, " ".join(error for errors in form.errors.values() for error in errors))
+        error_message = " ".join(error for errors in form.errors.values() for error in errors)
+        if request.FILES:
+            error_message += " 文字已保留，图片或 Markdown 附件请重新添加。"
+        messages.error(request, error_message)
         return redirect(back)
     data = form.cleaned_data
     mode = request.POST.get("mode", "")
@@ -93,6 +100,12 @@ def quick_post(request):
         data["to_teacher"] = True
     elif mode in Post.Kind.values:
         data["kind"] = mode
+    attachment = data.get("markdown_file")
+    digest = markdown_digest(attachment)
+    filename = Path(attachment.name).name if attachment else ""
+    if attachment:
+        data["kind"] = Post.Kind.SHOWCASE
+        back = reverse("board:home") + "?kind=showcase"
     recent = timezone.now() - QUICK_DUPLICATE_WINDOW
     if data["to_teacher"] and not request.user.is_staff:
         lecture = Lecture.latest_held()
@@ -101,9 +114,13 @@ def quick_post(request):
             Ticket.objects.create(author=request.user, lecture=lecture, body=data["body"])
         messages.success(request, "已实名发给老师，只有老师能看到。老师回应后会在「消息通知」里提醒你，进度可以在「我的提问」里看。")
         return redirect(back)
-    post = Post.objects.filter(author=request.user, body=data["body"], kind=data["kind"], anonymous=data["anonymous"], created_at__gte=recent).first()
-    if post is None:
-        post = Post.objects.create(author=request.user, kind=data["kind"], title=derive_title(data["body"]), body=data["body"], anonymous=data["anonymous"])
+    with transaction.atomic():
+        candidates = Post.objects.filter(author=request.user, body=data["body"], kind=data["kind"], anonymous=data["anonymous"], markdown_sha256=digest, markdown_filename=filename, created_at__gte=recent).prefetch_related("gallery_images")
+        post = next((candidate for candidate in candidates if matching_gallery(candidate, data["images"])), None)
+        if post is None:
+            post = Post.objects.create(author=request.user, kind=data["kind"], title=derive_title(data["body"]) if data["body"] else Path(filename).stem[:120], body=data["body"], anonymous=data["anonymous"], markdown_file=attachment or "")
+            for index, image in enumerate(data["images"]):
+                PostImage.objects.create(post=post, image=image, is_cover=index == 0)
     messages.success(request, "已发布，它已经是「想听热榜」的候选，有人点 ♥ 就会往上排。" if post.kind == Post.Kind.TOPIC else "已发布。")
     return redirect(back + f"#post-{post.pk}")
 
@@ -194,31 +211,43 @@ def pending_dismiss(request):
 def post_create(request):
     initial_kind = request.GET.get("kind") if request.GET.get("kind") in dict(Post.Kind.choices) else None
     form = PostForm(request.POST or None, request.FILES or None, initial={"kind": initial_kind} if initial_kind else None)
-    if request.method == "POST" and form.is_valid():
+    projects = project_formset_for_request(request, form.instance)
+    valid = form.is_valid() if request.method == "POST" else False
+    projects_valid = projects.is_valid() if projects.is_bound else True
+    if valid and projects_valid:
         with transaction.atomic():
             post = form.save(commit=False); post.author = request.user; post.save()
+            if projects.is_bound:
+                projects.instance = post; projects.save()
             form.save_gallery(post)
         messages.success(request, "已发布。")
         return redirect("board:post_detail", pk=post.pk)
-    return render(request, "board/post_form.html", common_context() | {"form": form})
+    return render(request, "board/post_form.html", common_context() | {"form": form, "project_formset": projects})
 
 @login_required
+@transaction.atomic
 def post_edit(request, pk):
+    # SQLite IMMEDIATE acquires the write transaction before reading children,
+    # so another edit cannot validate against the same count and then overfill.
     post = get_object_or_404(Post, pk=pk)
     if not _can_delete(request.user, post):
         raise PermissionDenied
     form = PostForm(request.POST or None, request.FILES or None, instance=post)
-    if request.method == "POST" and form.is_valid():
-        with transaction.atomic():
-            post = form.save()
-            form.save_gallery(post)
+    projects = project_formset_for_request(request, post)
+    valid = form.is_valid() if request.method == "POST" else False
+    projects_valid = projects.is_valid() if projects.is_bound else True
+    if valid and projects_valid:
+        post = form.save()
+        if projects.is_bound:
+            projects.save()
+        form.save_gallery(post)
         messages.success(request, "已更新。")
         return redirect("board:post_detail", pk=post.pk)
-    return render(request, "board/post_form.html", common_context() | {"form": form, "post": post})
+    return render(request, "board/post_form.html", common_context() | {"form": form, "post": post, "project_formset": projects})
 
 @login_required
 def post_detail(request, pk):
-    post = get_object_or_404(Post.objects.select_related("author", "planned_lecture").prefetch_related("gallery_images").annotate(like_count=Count("likes", distinct=True), comment_count=Count("comments", distinct=True)), pk=pk)
+    post = get_object_or_404(Post.objects.select_related("author", "planned_lecture").prefetch_related("gallery_images", "projects").annotate(like_count=Count("likes", distinct=True), comment_count=Count("comments", distinct=True)), pk=pk)
     reply_to = request.GET.get("reply_to")
     initial = {"parent_id": reply_to} if reply_to and reply_to.isdigit() and post.comments.filter(pk=reply_to).exists() else {}
     staff_extra = {"lectures": Lecture.objects.all(), "upcoming_lecture": Lecture.upcoming()} if request.user.is_staff else {}
@@ -378,3 +407,13 @@ def notification_open(request, pk):
 def notifications_read(request):
     request.user.notifications.filter(read_at__isnull=True).update(read_at=timezone.now())
     return redirect("board:notifications")
+
+@login_required
+def post_project_video(request, post_pk, project_pk):
+    project = get_object_or_404(PostProject, pk=project_pk, post_id=post_pk)
+    return video_response(request, project.video, project.original_filename or Path(project.video.name).name)
+
+@login_required
+def post_project_poster(request, post_pk, project_pk):
+    project = get_object_or_404(PostProject, pk=project_pk, post_id=post_pk)
+    return _cacheable(_post_media_response(project.poster, Path(project.poster.name).name, IMAGE_CONTENT_TYPES))

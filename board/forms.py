@@ -1,4 +1,6 @@
+from pathlib import Path
 from django import forms
+from .post_markdown import validate_post_markdown
 from .models import Comment, Post, PostImage, Report, validate_image
 
 
@@ -44,7 +46,15 @@ class MediaUrlFormMixin:
         return self._clean_http_url("video_link")
 
 
+class MarkdownFileInput(forms.ClearableFileInput):
+    template_name = "board/widgets/markdown_file_input.html"
+
+
 class PostForm(MediaUrlFormMixin, forms.ModelForm):
+    markdown_file = forms.FileField(label="Markdown", required=False, max_length=255,
+        validators=[validate_post_markdown],
+        widget=MarkdownFileInput(attrs={"accept": ".md,.markdown", "data-markdown-input": True}),
+        help_text="每帖一份，最大 2 MB。支持在线阅读和下载；上传文件后可以不填正文。")
     images = MultipleImageField(
         label="图片",
         required=False,
@@ -55,10 +65,25 @@ class PostForm(MediaUrlFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["body"].required = False
+        self.fields["title"].required = False
         if self.instance.pk and not self.is_bound:
             cover_image = self.instance.cover_image
             if cover_image:
                 self.fields["cover_choice"].initial = f"existing:{cover_image.pk}"
+
+    def clean(self):
+        data = super().clean()
+        attachment = data.get("markdown_file")
+        if not data.get("body") and not attachment and "markdown_file" not in self.errors:
+            self.add_error("body", "写点内容或添加 Markdown 后再发布。")
+        if not data.get("title"):
+            if attachment:
+                name = self.instance.markdown_filename if getattr(attachment, "_committed", False) else attachment.name
+                data["title"] = Path(name).stem[:120]
+            else:
+                self.add_error("title", "请填写标题。")
+        return data
 
     def clean_images(self):
         images = self.cleaned_data["images"]
@@ -105,11 +130,11 @@ class PostForm(MediaUrlFormMixin, forms.ModelForm):
 
     class Meta:
         model = Post
-        fields = ["kind", "title", "body", "anonymous", "link", "image", "audio", "audio_link", "video_link"]
+        fields = ["kind", "title", "body", "markdown_file", "anonymous", "link", "image", "audio", "audio_link", "video_link", "closing_body"]
         labels = {"title": "标题", "body": "内容", "kind": "栏目", "anonymous": "匿名发布", "link": "作品链接", "image": "图片", "audio": "音频", "audio_link": "音频链接", "video_link": "视频链接"}
         help_texts = {
             "audio": "支持 MP3、M4A、WAV、OGG；文件会保留原始文件名和元数据。",
-            "video_link": "视频仅支持填写链接，将在帖子详情页播放或打开。",
+            "video_link": "外部视频可填写链接；本地 MP4 可在下方项目中上传。",
         }
         widgets = {"title": forms.TextInput(attrs={"placeholder": "简明概括你想讨论的内容（最多 120 字）"}), "body": forms.Textarea(attrs={"placeholder": "写下你的想法（最多 5000 字）"}), "link": forms.URLInput(attrs={"placeholder": "https://"}), "image": forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}), "audio": forms.ClearableFileInput(attrs={"accept": "audio/mpeg,audio/mp4,audio/wav,audio/ogg"}), "audio_link": forms.URLInput(attrs={"placeholder": "https://"}), "video_link": forms.URLInput(attrs={"placeholder": "https://"})}
 
@@ -134,11 +159,29 @@ class ReportForm(forms.ModelForm):
 
 class QuickPostForm(forms.Form):
     """首页一行发帖：只要正文，标题自动取第一句。勾选「只给老师看」就变成课后小票。"""
-    body = forms.CharField(label="内容", max_length=1000, strip=True, error_messages={
+    body = forms.CharField(label="内容", max_length=1000, strip=True, required=False, error_messages={
         "required": "先写点什么再发布。", "max_length": "一行发帖最多 1000 字；更长的请用完整编辑器。"})
+    markdown_file = forms.FileField(required=False, max_length=255, validators=[validate_post_markdown])
+    images = MultipleImageField(required=False)
     kind = forms.CharField(label="栏目", required=False)
     anonymous = forms.BooleanField(label="匿名", required=False)
     to_teacher = forms.BooleanField(label="只给老师看", required=False)
+
+    def clean_images(self):
+        images = self.cleaned_data["images"]
+        if len(images) > 8:
+            raise forms.ValidationError("一次最多上传 8 张图片。")
+        return images
+
+    def clean(self):
+        data = super().clean()
+        if not data.get("body") and not data.get("markdown_file") and "markdown_file" not in self.errors:
+            self.add_error("body", "先写点什么或添加 Markdown 再发布。")
+        if data.get("markdown_file") and (self.data.get("mode") == "teacher" or data.get("to_teacher")):
+            self.add_error("markdown_file", "问老师暂不支持 Markdown 附件，请使用作品与分享。")
+        if data.get("images") and (self.data.get("mode") == "teacher" or data.get("to_teacher")):
+            raise forms.ValidationError("问老师暂不支持图片，请移除图片后重试；公开分享可添加图片。")
+        return data
 
     def clean_kind(self):
         kind = self.cleaned_data.get("kind")

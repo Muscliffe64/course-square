@@ -1,0 +1,16 @@
+/* A single compact entry; the existing form stays mounted while closed. */
+.composer-launcher{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:54px;padding:12px 20px;border:1px solid var(--line,#e1e4dc);border-radius:14px;background:var(--paper,#fff);color:var(--muted,#6b736b);text-decoration:none;margin-bottom:20px;box-sizing:border-box}
+.composer-launcher:hover{border-color:var(--orange,#c9633d);color:var(--ink,#243b37)}
+.composer-launcher:focus-visible,.composer-close:focus-visible{outline:2px solid var(--orange,#c9633d);outline-offset:3px}
+.composer-launcher [data-composer-summary]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.composer-launcher-arrow{font-size:24px;line-height:1;flex-shrink:0}
+.composer-dialog{border:1px solid var(--line,#e1e4dc);border-radius:20px;padding:0;width:min(720px,calc(100vw - 32px));max-width:none;max-height:calc(100dvh - 48px);overflow:auto;background:var(--paper,#fff);color:var(--ink,#243b37);box-shadow:0 24px 80px #162c3440}
+.composer-dialog:not([open]){display:none}
+.composer-dialog::backdrop{background:#152b3266}
+.composer-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px;border-bottom:1px solid var(--line,#e1e4dc)}
+.composer-dialog-header h2{font-size:20px;margin:0}
+.composer-close{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:inherit;font-size:28px;cursor:pointer}
+.composer-close:hover{background:#eee}
+.composer-dialog .composer.composer-spacious{margin:0;border:0;box-shadow:none;border-radius:0}
+html.composer-dialog-open{overflow:hidden}
+@media(max-width:640px){.composer-launcher{padding:10px 16px;min-height:50px;margin-bottom:16px}.composer-dialog{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);border-radius:16px}.composer-dialog-header{padding:12px 16px}.composer-dialog .composer.composer-spacious{padding:16px}.composer-dialog .composer-toolbar{padding-bottom:env(safe-area-inset-bottom)}}
